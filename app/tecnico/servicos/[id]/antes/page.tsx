@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/app/lib/api";
 
-export default function DepoisPage() {
+export default function AntesPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -12,7 +12,7 @@ export default function DepoisPage() {
   const [os, setOs] = useState<any>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [fotos, setFotos] = useState<string[]>([]);
+  const [fotos, setFotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
@@ -31,62 +31,70 @@ export default function DepoisPage() {
     }
   }
 
-  function adicionarFoto() {
-    const url = prompt("Cole a URL da foto:");
-    if (url) {
-      setFotos([...fotos, url]);
-    }
+  function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files) return;
+    const novas = Array.from(e.target.files);
+    setFotos((prev) => [...prev, ...novas]);
   }
 
-  function removerFoto(url: string) {
-    setFotos(fotos.filter((f) => f !== url));
+  function removerFoto(index: number) {
+    setFotos((prev) => prev.filter((_, i) => i !== index));
   }
 
-  async function salvarDepois() {
+  async function salvarAntes() {
     setSalvando(true);
 
     try {
-      await apiFetch(`/projects/tecnico/depois/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          relatorio,
-          observacao,
-          fotos
-        })
+      const formData = new FormData();
+      formData.append("relatorio", relatorio);
+      formData.append("observacao", observacao);
+
+      fotos.forEach((foto) => {
+        formData.append("fotos", foto);
       });
 
-      alert("Serviço finalizado com sucesso!");
-      router.push("/tecnico");
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/tecnico/antes/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao salvar ANTES");
+      }
+
+      router.push(`/tecnico/servicos/${id}/depois`);
+
     } catch (err: any) {
-      alert("Erro ao salvar DEPOIS: " + err.message);
+      alert("Erro ao salvar ANTES: " + err.message);
     } finally {
       setSalvando(false);
     }
   }
 
-  if (loading) {
-    return <div className="p-6">Carregando...</div>;
-  }
-
-  if (!os) {
-    return <div className="p-6">OS não encontrada</div>;
-  }
+  if (loading) return <div className="p-6">Carregando...</div>;
+  if (!os) return <div className="p-6">OS não encontrada</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 text-black">
+    <div className="min-h-screen bg-gray-100 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
 
-        <h1 className="text-2xl font-bold mb-4">DEPOIS – {os.osNumero}</h1>
+        <h1 className="text-2xl font-bold mb-4">ANTES – {os.osNumero}</h1>
 
-        <div className="mb-4">
+        <div className="mb-4 text-sm">
           <p><b>Cliente:</b> {os.cliente}</p>
-          {os.marca && <p><b>Marca:</b> {os.marca}</p>}
           {os.unidade && <p><b>Unidade:</b> {os.unidade}</p>}
           {os.endereco && <p><b>Endereço:</b> {os.endereco}</p>}
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Relatório final</label>
+          <label className="block mb-1 font-medium">Relatório</label>
           <textarea
             value={relatorio}
             onChange={(e) => setRelatorio(e.target.value)}
@@ -95,7 +103,7 @@ export default function DepoisPage() {
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Observação final</label>
+          <label className="block mb-1 font-medium">Observação</label>
           <textarea
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
@@ -103,37 +111,48 @@ export default function DepoisPage() {
           />
         </div>
 
+        {/* FOTOS */}
         <div className="mb-4">
-          <p className="font-medium mb-2">📷 Adicionar fotos do DEPOIS</p>
+          <label className="block mb-2 font-medium">📷 Fotos</label>
 
-          <button
-            onClick={adicionarFoto}
-            className="bg-blue-600 text-white px-4 py-2 rounded mb-3"
-          >
-            📷 Adicionar Foto
-          </button>
+          <label className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
+            Adicionar fotos
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              hidden
+              onChange={handleFotosChange}
+            />
+          </label>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {fotos.map((foto) => (
-              <div key={foto} className="relative">
-                <img src={foto} className="rounded border" />
-                <button
-                  onClick={() => removerFoto(foto)}
-                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-                >
-                  X
-                </button>
-              </div>
-            ))}
-          </div>
+          {fotos.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+              {fotos.map((foto, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={URL.createObjectURL(foto)}
+                    className="rounded border object-cover h-32 w-full"
+                  />
+                  <button
+                    onClick={() => removerFoto(index)}
+                    className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
+                  >
+                    X
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <button
-          onClick={salvarDepois}
+          onClick={salvarAntes}
           disabled={salvando}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg w-full transition"
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded w-full transition"
         >
-          {salvando ? "Finalizando..." : "Finalizar chamado ✔"}
+          {salvando ? "Salvando..." : "Salvar e ir para DEPOIS →"}
         </button>
 
       </div>
