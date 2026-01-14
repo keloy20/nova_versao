@@ -24,9 +24,21 @@ export default function TecnicoPage() {
       const data = await apiFetch("/projects/tecnico/my");
       setServicos(data);
     } catch (err: any) {
-      alert("Erro ao carregar serviços: " + err.message);
+      alert(err.message || "Erro ao carregar serviços");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function abrirChamado(id: string) {
+    try {
+      await apiFetch(`/projects/tecnico/abrir/${id}`, {
+        method: "PUT"
+      });
+
+      router.push(`/tecnico/servicos/${id}`);
+    } catch (err: any) {
+      alert(err.message || "Erro ao abrir chamado");
     }
   }
 
@@ -39,38 +51,42 @@ export default function TecnicoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 text-black">
-      <h1 className="text-2xl font-bold mb-6">Minhas Ordens de Serviço</h1>
+    <div className="min-h-screen bg-gray-100 p-6 text-black">
+      <h1 className="text-2xl font-bold mb-4">Meus Chamados</h1>
 
-      {servicos.length === 0 && (
-        <p className="text-gray-600">Nenhuma OS atribuída.</p>
-      )}
+      {servicos.length === 0 && <p>Nenhum chamado atribuído.</p>}
 
       <div className="grid gap-4">
         {servicos.map((s) => (
-          <div
-            key={s._id}
-            className="bg-white rounded-xl shadow p-4 flex flex-col gap-2"
-          >
+          <div key={s._id} className="bg-white p-4 rounded shadow flex flex-col gap-2">
             <div className="flex justify-between items-center">
-              <span className="font-semibold">{s.osNumero}</span>
-              <span className="text-sm px-3 py-1 rounded-full bg-blue-100 text-blue-700">
-                {s.status}
+              <span className="font-bold">{s.osNumero}</span>
+              <span className="text-sm">
+                {s.status === "aguardando_tecnico" && "Aguardando"}
+                {s.status === "em_andamento" && "Em andamento"}
+                {s.status === "concluido" && "Concluído"}
               </span>
             </div>
 
             <div><b>Cliente:</b> {s.cliente}</div>
-            {s.marca && <div><b>Marca:</b> {s.marca}</div>}
-            {s.unidade && <div><b>Unidade:</b> {s.unidade}</div>}
-            {s.endereco && <div><b>Endereço:</b> {s.endereco}</div>}
-            {s.detalhamento && <div><b>Detalhamento:</b> {s.detalhamento}</div>}
 
-            <button
-              onClick={() => router.push(`/tecnico/servicos/${s._id}/antes`)}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded mt-2"
-            >
-              Abrir Serviço
-            </button>
+            <div className="flex gap-2 mt-2 flex-wrap">
+              <button
+                onClick={() => router.push(`/tecnico/servicos/${s._id}`)}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Ver
+              </button>
+
+              {s.status === "aguardando_tecnico" && (
+                <button
+                  onClick={() => abrirChamado(s._id)}
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                >
+                  Abrir chamado
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

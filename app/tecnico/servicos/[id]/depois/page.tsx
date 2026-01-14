@@ -22,7 +22,7 @@ export default function DepoisPage() {
     formData.append("observacao", observacao);
     fotos.forEach((f) => formData.append("fotos", f));
 
-    const res = await fetch(`http://localhost:3001/projects/tecnico/depois/${id}`, {
+    const res = await fetch(`https://gerenciador-de-os.onrender.com/projects/tecnico/antes/${id}`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: formData
