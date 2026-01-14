@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/app/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,26 +18,15 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3001/auth/login", {
+      const data = await apiFetch("/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({ email, senha })
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Erro no login");
-      }
-
-      // SALVA NO LOCALSTORAGE
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
       localStorage.setItem("nome", data.nome || "");
 
-      // REDIRECIONA PELO PERFIL
       if (data.role === "admin") {
         router.push("/admin");
       } else {
