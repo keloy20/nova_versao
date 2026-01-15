@@ -40,7 +40,9 @@ export default function TecnicosPage() {
     }
   }
 
-  if (loading) return <div className="p-6">Carregando...</div>;
+  if (loading) {
+    return <div className="p-6">Carregando...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
