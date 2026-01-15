@@ -13,32 +13,16 @@ export default function TecnicosPage() {
     carregarTecnicos();
   }, []);
 
-async function carregarTecnicos() {
-  try {
-    const token = localStorage.getItem("token");
-
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/auth/tecnicos`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || "Erro ao buscar técnicos");
+  async function carregarTecnicos() {
+    try {
+      const data = await apiFetch("/auth/tecnicos");
+      setTecnicos(data);
+    } catch (err: any) {
+      alert("Erro ao carregar técnicos: " + err.message);
+    } finally {
+      setLoading(false); // <<< ISSO AQUI É O QUE FALTAVA
     }
-
-    setTecnicos(data);
-
-  } catch (err: any) {
-    alert("Erro ao carregar técnicos: " + err.message);
   }
-}
-
 
   async function excluirTecnico(id: string) {
     const ok = confirm("Tem certeza que deseja excluir este técnico?");
