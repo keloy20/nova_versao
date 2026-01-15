@@ -22,16 +22,22 @@ export default function AntesPage() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch(`https://gerenciador-de-os.onrender.com/projects/tecnico/view/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
+      const res = await fetch(
+        `https://gerenciador-de-os.onrender.com/projects/tecnico/view/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-      });
+      );
+
+      if (!res.ok) {
+        throw new Error("Erro ao buscar OS");
+      }
 
       const data = await res.json();
       setOs(data);
-
-    } catch (err: any) {
+    } catch (err) {
       alert("Erro ao carregar OS");
     } finally {
       setLoading(false);
@@ -40,7 +46,6 @@ export default function AntesPage() {
 
   function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
-
     const files = Array.from(e.target.files);
     setFotos(files);
   }
@@ -61,22 +66,23 @@ export default function AntesPage() {
         formData.append("fotos", foto);
       });
 
-      const res = await fetch(`https://gerenciador-de-os.onrender.com/projects/tecnico/antes/${id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: formData
-      });
+      const res = await fetch(
+        `https://gerenciador-de-os.onrender.com/projects/tecnico/antes/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
 
       if (!res.ok) {
-        alert("Erro ao salvar ANTES");
-        return;
+        throw new Error("Erro ao salvar ANTES");
       }
 
       router.push(`/tecnico/servicos/${id}/depois`);
-
-    } catch (err: any) {
+    } catch (err) {
       alert("Erro ao salvar ANTES");
     }
   }
@@ -92,14 +98,27 @@ export default function AntesPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-
         <h1 className="text-2xl font-bold mb-4">ANTES – {os.osNumero}</h1>
 
         <div className="mb-4">
-          <p><b>Cliente:</b> {os.cliente}</p>
-          {os.marca && <p><b>Marca:</b> {os.marca}</p>}
-          {os.unidade && <p><b>Unidade:</b> {os.unidade}</p>}
-          {os.endereco && <p><b>Endereço:</b> {os.endereco}</p>}
+          <p>
+            <b>Cliente:</b> {os.cliente}
+          </p>
+          {os.marca && (
+            <p>
+              <b>Marca:</b> {os.marca}
+            </p>
+          )}
+          {os.unidade && (
+            <p>
+              <b>Unidade:</b> {os.unidade}
+            </p>
+          )}
+          {os.endereco && (
+            <p>
+              <b>Endereço:</b> {os.endereco}
+            </p>
+          )}
           {os.detalhamento && (
             <div className="mt-2 p-3 bg-yellow-50 border rounded">
               <b>Detalhamento do serviço:</b>
@@ -163,7 +182,6 @@ export default function AntesPage() {
         >
           Salvar e ir para DEPOIS →
         </button>
-
       </div>
     </div>
   );
