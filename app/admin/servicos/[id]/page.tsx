@@ -46,34 +46,73 @@ export default function DetalheOSPage() {
   }
 
   function gerarPDF() {
-    if (!os) return;
+  if (!os) return;
 
-    const doc = new jsPDF();
-    let y = 10;
+  const doc = new jsPDF();
+  let y = 10;
 
-    doc.setFontSize(14);
-    doc.text(`Ordem de Serviço - ${os.osNumero || ""}`, 10, y);
-    y += 10;
+  doc.setFontSize(14);
+  doc.text(`Ordem de Serviço - ${os.osNumero || ""}`, 10, y);
+  y += 10;
 
-    doc.setFontSize(10);
-    doc.text(`Status: ${os.status}`, 10, y); y += 6;
-    doc.text(`Cliente: ${os.cliente}`, 10, y); y += 6;
-    doc.text(`Marca: ${os.marca || "-"}`, 10, y); y += 6;
-    doc.text(`Unidade: ${os.unidade || "-"}`, 10, y); y += 6;
-    doc.text(`Endereço: ${os.endereco || "-"}`, 10, y); y += 6;
-    doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, 10, y); y += 10;
+  doc.setFontSize(10);
+  doc.text(`Status: ${os.status}`, 10, y); y += 6;
+  doc.text(`Cliente: ${os.cliente}`, 10, y); y += 6;
+  doc.text(`Marca: ${os.marca || "-"}`, 10, y); y += 6;
+  doc.text(`Unidade: ${os.unidade || "-"}`, 10, y); y += 6;
+  doc.text(`Endereço: ${os.endereco || "-"}`, 10, y); y += 6;
+  doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, 10, y); y += 10;
 
-    doc.text("Detalhamento do Serviço:", 10, y); y += 6;
-    doc.text(os.detalhamento || "-", 10, y, { maxWidth: 180 }); y += 10;
+  doc.text("Detalhamento do Serviço:", 10, y); 
+  y += 6;
+  doc.text(os.detalhamento || "-", 10, y, { maxWidth: 180 });
+  y += 10;
 
-    doc.text("ANTES:", 10, y); y += 6;
-    doc.text(os.antes?.relatorio || "-", 10, y, { maxWidth: 180 }); y += 10;
+  // ===== ANTES =====
+  doc.text("ANTES:", 10, y); 
+  y += 6;
 
-    doc.text("DEPOIS:", 10, y); y += 6;
-    doc.text(os.depois?.relatorio || "-", 10, y, { maxWidth: 180 });
+  doc.text(os.antes?.relatorio || "-", 10, y, { maxWidth: 180 });
+  y += 6;
 
-    doc.save(`OS-${os.osNumero || id}.pdf`);
+  if (os.antes?.fotos && os.antes.fotos.length > 0) {
+    for (const foto of os.antes.fotos) {
+      const imgData = `data:${foto.tipo};base64,${foto.base64}`;
+      doc.addImage(imgData, "JPEG", 10, y, 50, 50);
+      y += 55;
+
+      if (y > 250) {
+        doc.addPage();
+        y = 10;
+      }
+    }
   }
+
+  y += 10;
+
+  // ===== DEPOIS =====
+  doc.text("DEPOIS:", 10, y); 
+  y += 6;
+
+  doc.text(os.depois?.relatorio || "-", 10, y, { maxWidth: 180 });
+  y += 6;
+
+  if (os.depois?.fotos && os.depois.fotos.length > 0) {
+    for (const foto of os.depois.fotos) {
+      const imgData = `data:${foto.tipo};base64,${foto.base64}`;
+      doc.addImage(imgData, "JPEG", 10, y, 50, 50);
+      y += 55;
+
+      if (y > 250) {
+        doc.addPage();
+        y = 10;
+      }
+    }
+  }
+
+  doc.save(`OS-${os.osNumero || id}.pdf`);
+}
+
 
   if (loading) {
     return <div className="p-6 text-center text-gray-700">Carregando...</div>;
@@ -205,6 +244,18 @@ export default function DetalheOSPage() {
               {os.antes?.relatorio || "-"}
             </p>
           </div>
+          {os.antes?.fotos && os.antes.fotos.length > 0 && (
+  <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
+    {os.antes.fotos.map((foto: any, index: number) => (
+      <img
+        key={index}
+        src={`data:${foto.tipo};base64,${foto.base64}`}
+        className="w-full h-32 object-cover rounded border"
+      />
+    ))}
+  </div>
+)}
+
 
           {/* DEPOIS */}
           <div className="bg-green-50 p-3 rounded-lg border border-green-300">
@@ -213,6 +264,18 @@ export default function DetalheOSPage() {
               {os.depois?.relatorio || "-"}
             </p>
           </div>
+          {os.depois?.fotos && os.depois.fotos.length > 0 && (
+  <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
+    {os.depois.fotos.map((foto: any, index: number) => (
+      <img
+        key={index}
+        src={`data:${foto.tipo};base64,${foto.base64}`}
+        className="w-full h-32 object-cover rounded border"
+      />
+    ))}
+  </div>
+)}
+
 
         </div>
       </div>
