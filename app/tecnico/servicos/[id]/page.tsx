@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiFetch } from "@/app/lib/api";
 
 export default function AntesPage() {
   const params = useParams();
@@ -12,7 +11,7 @@ export default function AntesPage() {
   const [os, setOs] = useState<any>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [fotos, setFotos] = useState<string[]>([]);
+  const [fotos, setFotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,40 +20,64 @@ export default function AntesPage() {
 
   async function carregarOS() {
     try {
-      const data = await apiFetch(`/projects/tecnico/view/${id}`);
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(`https://gerenciador-de-os.onrender.com/projects/tecnico/view/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
       setOs(data);
+
     } catch (err: any) {
-      alert("Erro ao carregar OS: " + err.message);
+      alert("Erro ao carregar OS");
     } finally {
       setLoading(false);
     }
   }
 
-  function adicionarFoto() {
-    const url = prompt("Cole a URL da foto:");
-    if (url) {
-      setFotos([...fotos, url]);
-    }
+  function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files) return;
+
+    const files = Array.from(e.target.files);
+    setFotos(files);
   }
 
-  function removerFoto(url: string) {
-    setFotos(fotos.filter((f) => f !== url));
+  function removerFoto(index: number) {
+    setFotos(fotos.filter((_, i) => i !== index));
   }
 
   async function salvarAntes() {
     try {
-      await apiFetch(`/projects/tecnico/antes/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          relatorio,
-          observacao,
-          fotos
-        })
+      const token = localStorage.getItem("token");
+
+      const formData = new FormData();
+      formData.append("relatorio", relatorio);
+      formData.append("observacao", observacao);
+
+      fotos.forEach((foto) => {
+        formData.append("fotos", foto);
       });
 
+      const res = await fetch(`https://gerenciador-de-os.onrender.com/projects/tecnico/antes/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!res.ok) {
+        alert("Erro ao salvar ANTES");
+        return;
+      }
+
       router.push(`/tecnico/servicos/${id}/depois`);
+
     } catch (err: any) {
-      alert("Erro ao salvar ANTES: " + err.message);
+      alert("Erro ao salvar ANTES");
     }
   }
 
@@ -104,21 +127,27 @@ export default function AntesPage() {
         </div>
 
         <div className="mb-4">
-          <p className="font-medium mb-2">📷 Adicionar fotos</p>
+          <label className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
+            📷 Adicionar fotos
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              hidden
+              onChange={handleFotosChange}
+            />
+          </label>
 
-          <button
-            onClick={adicionarFoto}
-            className="bg-blue-600 text-white px-4 py-2 rounded mb-3"
-          >
-            📷 Adicionar Foto
-          </button>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {fotos.map((foto) => (
-              <div key={foto} className="relative">
-                <img src={foto} className="rounded border" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+            {fotos.map((foto, index) => (
+              <div key={index} className="relative">
+                <img
+                  src={URL.createObjectURL(foto)}
+                  className="rounded border"
+                />
                 <button
-                  onClick={() => removerFoto(foto)}
+                  onClick={() => removerFoto(index)}
                   className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
                 >
                   X
