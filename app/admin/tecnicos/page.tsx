@@ -20,7 +20,6 @@ export default function TecnicosPage() {
     } catch (err: any) {
       alert("Erro ao carregar técnicos: " + err.message);
     } finally {
-      // 🔥 ISSO AQUI GARANTE QUE NUNCA FICA TRAVADO
       setLoading(false);
     }
   }
@@ -36,15 +35,12 @@ export default function TecnicosPage() {
 
       alert("Técnico excluído com sucesso");
       carregarTecnicos();
-
     } catch (err: any) {
       alert("Erro ao excluir técnico: " + err.message);
     }
   }
 
-  if (loading) {
-    return <div className="p-6">Carregando...</div>;
-  }
+  if (loading) return <div className="p-6">Carregando...</div>;
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
