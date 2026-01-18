@@ -16,9 +16,12 @@ export default function TecnicosPage() {
   async function carregarTecnicos() {
     try {
       const data = await apiFetch("/auth/tecnicos");
-      setTecnicos(data);
+
+      // ✅ CORREÇÃO: garante array mesmo com 204
+      setTecnicos(data || []);
     } catch (err: any) {
       alert("Erro ao carregar técnicos: " + err.message);
+      setTecnicos([]);
     } finally {
       setLoading(false);
     }
@@ -47,7 +50,6 @@ export default function TecnicosPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-black">Técnicos</h1>
           <button
@@ -64,6 +66,10 @@ export default function TecnicosPage() {
         >
           + Novo Técnico
         </button>
+
+        {tecnicos.length === 0 && (
+          <p className="text-gray-500 mb-3">Nenhum técnico cadastrado.</p>
+        )}
 
         <div className="space-y-3">
           {tecnicos.map((t) => (
@@ -85,7 +91,6 @@ export default function TecnicosPage() {
             </div>
           ))}
         </div>
-
       </div>
     </div>
   );
