@@ -6,11 +6,12 @@ import { useParams, useRouter } from "next/navigation";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://gerenciador-de-os.onrender.com";
 
-export default function AntesPage() {
-  const { id } = useParams();
+export default function DepoisPage() {
+  const params = useParams();
+  const id = params.id as string;
   const router = useRouter();
 
-  const [os, setOs] = useState<any>(null);
+  const [os, setOs] = useState<any | null>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [fotos, setFotos] = useState<File[]>([]);
@@ -19,6 +20,7 @@ export default function AntesPage() {
 
   useEffect(() => {
     carregarOS();
+    // eslint-disable-next-line
   }, []);
 
   async function carregarOS() {
@@ -29,15 +31,13 @@ export default function AntesPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      if (!res.ok) throw new Error();
+
       const data = await res.json();
 
+      // 🔒 já finalizado → visualizar
       if (data.status === "concluido") {
         router.replace(`/tecnico/servicos/${id}/visualizar`);
-        return;
-      }
-
-      if (data.antes && data.antes.fotos?.length > 0) {
-        router.replace(`/tecnico/servicos/${id}/depois`);
         return;
       }
 
@@ -50,18 +50,16 @@ export default function AntesPage() {
   }
 
   function handleFotos(e: React.ChangeEvent<HTMLInputElement>) {
-  const files = e.currentTarget.files;
-  if (!files) return;
-
-  setFotos((prev) => [...prev, ...Array.from(files)]);
-}
-
+    const files = e.currentTarget.files;
+    if (!files) return;
+    setFotos((prev) => [...prev, ...Array.from(files)]);
+  }
 
   function removerFoto(i: number) {
     setFotos((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  async function salvarAntes() {
+  async function salvarDepois() {
     setSalvando(true);
 
     try {
@@ -72,7 +70,7 @@ export default function AntesPage() {
       formData.append("observacao", observacao);
       fotos.forEach((f) => formData.append("fotos", f));
 
-      const res = await fetch(`${API_URL}/projects/tecnico/antes/${id}`, {
+      const res = await fetch(`${API_URL}/projects/tecnico/depois/${id}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -80,9 +78,9 @@ export default function AntesPage() {
 
       if (!res.ok) throw new Error();
 
-      router.push(`/tecnico/servicos/${id}/depois`);
+      router.replace(`/tecnico/servicos/${id}/visualizar`);
     } catch {
-      alert("Erro ao salvar ANTES");
+      alert("Erro ao salvar DEPOIS");
     } finally {
       setSalvando(false);
     }
@@ -94,17 +92,19 @@ export default function AntesPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white p-6 rounded shadow">
-        <h1 className="text-2xl font-bold mb-4">ANTES – {os.osNumero}</h1>
+        <h1 className="text-2xl font-bold mb-4">
+          DEPOIS – {os.osNumero}
+        </h1>
 
         <textarea
-          placeholder="Relatório"
+          placeholder="Relatório final"
           className="border p-2 w-full mb-3"
           value={relatorio}
           onChange={(e) => setRelatorio(e.target.value)}
         />
 
         <textarea
-          placeholder="Observação"
+          placeholder="Observação final"
           className="border p-2 w-full mb-3"
           value={observacao}
           onChange={(e) => setObservacao(e.target.value)}
@@ -115,7 +115,10 @@ export default function AntesPage() {
         <div className="grid grid-cols-3 gap-2 mt-3">
           {fotos.map((f, i) => (
             <div key={i} className="relative">
-              <img src={URL.createObjectURL(f)} className="h-24 w-full object-cover" />
+              <img
+                src={URL.createObjectURL(f)}
+                className="h-24 w-full object-cover"
+              />
               <button
                 onClick={() => removerFoto(i)}
                 className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2"
@@ -127,11 +130,11 @@ export default function AntesPage() {
         </div>
 
         <button
-          onClick={salvarAntes}
+          onClick={salvarDepois}
           disabled={salvando}
           className="mt-4 bg-green-600 text-white w-full py-3 rounded"
         >
-          {salvando ? "Salvando..." : "Salvar e ir para DEPOIS"}
+          {salvando ? "Finalizando..." : "Finalizar serviço"}
         </button>
       </div>
     </div>

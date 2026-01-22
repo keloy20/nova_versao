@@ -7,10 +7,11 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://gerenciador-de-os.onrender.com";
 
 export default function AntesPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params.id as string;
   const router = useRouter();
 
-  const [os, setOs] = useState<any>(null);
+  const [os, setOs] = useState<any | null>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [fotos, setFotos] = useState<File[]>([]);
@@ -19,6 +20,7 @@ export default function AntesPage() {
 
   useEffect(() => {
     carregarOS();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarOS() {
@@ -26,39 +28,46 @@ export default function AntesPage() {
       const token = localStorage.getItem("token");
 
       const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
+
+      if (!res.ok) {
+        throw new Error("Erro ao buscar OS");
+      }
 
       const data = await res.json();
 
+      // 🔒 OS CONCLUÍDA → VISUALIZAÇÃO
       if (data.status === "concluido") {
         router.replace(`/tecnico/servicos/${id}/visualizar`);
         return;
       }
 
-      if (data.antes && data.antes.fotos?.length > 0) {
+      // 🔁 ANTES JÁ FEITO → IR PARA DEPOIS
+      if (data.antes && data.antes.fotos && data.antes.fotos.length > 0) {
         router.replace(`/tecnico/servicos/${id}/depois`);
         return;
       }
 
       setOs(data);
-    } catch {
+    } catch (err) {
       alert("Erro ao carregar OS");
     } finally {
       setLoading(false);
     }
   }
 
- function handleFotos(e: React.ChangeEvent<HTMLInputElement>) {
-  const files = e.currentTarget.files;
-  if (!files) return;
+  function handleFotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.currentTarget.files;
+    if (!files) return;
 
-  setFotos((prev) => [...prev, ...Array.from(files)]);
-}
+    setFotos((prev) => [...prev, ...Array.from(files)]);
+  }
 
-
-  function removerFoto(i: number) {
-    setFotos((prev) => prev.filter((_, idx) => idx !== i));
+  function removerFoto(index: number) {
+    setFotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function salvarAntes() {
@@ -70,68 +79,104 @@ export default function AntesPage() {
 
       formData.append("relatorio", relatorio);
       formData.append("observacao", observacao);
-      fotos.forEach((f) => formData.append("fotos", f));
+
+      fotos.forEach((foto) => {
+        formData.append("fotos", foto);
+      });
 
       const res = await fetch(`${API_URL}/projects/tecnico/antes/${id}`, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: formData,
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error("Erro ao salvar ANTES");
+      }
 
       router.push(`/tecnico/servicos/${id}/depois`);
-    } catch {
+    } catch (err) {
       alert("Erro ao salvar ANTES");
     } finally {
       setSalvando(false);
     }
   }
 
+  // 🔹 IMPORTANTE: não renderiza erro falso
   if (loading) return <p className="p-6">Carregando...</p>;
-  if (!os) return <p className="p-6">OS não encontrada</p>;
+  if (!os) return null;
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 text-black">
-      <div className="max-w-3xl mx-auto bg-white p-6 rounded shadow">
-        <h1 className="text-2xl font-bold mb-4">ANTES – {os.osNumero}</h1>
+      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
+        <h1 className="text-2xl font-bold mb-2">
+          ANTES – {os.osNumero}
+        </h1>
 
-        <textarea
-          placeholder="Relatório"
-          className="border p-2 w-full mb-3"
-          value={relatorio}
-          onChange={(e) => setRelatorio(e.target.value)}
-        />
+        <p className="text-sm text-gray-600 mb-4">
+          Criado em:{" "}
+          {os.createdAt
+            ? new Date(os.createdAt).toLocaleDateString("pt-BR")
+            : "-"}
+        </p>
 
-        <textarea
-          placeholder="Observação"
-          className="border p-2 w-full mb-3"
-          value={observacao}
-          onChange={(e) => setObservacao(e.target.value)}
-        />
+        <div className="mb-4">
+          <label className="block font-medium mb-1">Relatório</label>
+          <textarea
+            className="border p-2 rounded w-full min-h-[80px]"
+            value={relatorio}
+            onChange={(e) => setRelatorio(e.target.value)}
+          />
+        </div>
 
-        <input type="file" multiple accept="image/*" onChange={handleFotos} />
+        <div className="mb-4">
+          <label className="block font-medium mb-1">Observação</label>
+          <textarea
+            className="border p-2 rounded w-full min-h-[80px]"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+          />
+        </div>
 
-        <div className="grid grid-cols-3 gap-2 mt-3">
-          {fotos.map((f, i) => (
-            <div key={i} className="relative">
-              <img src={URL.createObjectURL(f)} className="h-24 w-full object-cover" />
-              <button
-                onClick={() => removerFoto(i)}
-                className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2"
-              >
-                X
-              </button>
-            </div>
-          ))}
+        <div className="mb-4">
+          <label className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
+            📷 Adicionar fotos
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              hidden
+              onChange={handleFotos}
+            />
+          </label>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+            {fotos.map((foto, index) => (
+              <div key={index} className="relative">
+                <img
+                  src={URL.createObjectURL(foto)}
+                  className="rounded border object-cover h-28 w-full"
+                />
+                <button
+                  onClick={() => removerFoto(index)}
+                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
+                >
+                  X
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <button
           onClick={salvarAntes}
           disabled={salvando}
-          className="mt-4 bg-green-600 text-white w-full py-3 rounded"
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg w-full"
         >
-          {salvando ? "Salvando..." : "Salvar e ir para DEPOIS"}
+          {salvando ? "Salvando..." : "Salvar e ir para DEPOIS →"}
         </button>
       </div>
     </div>
