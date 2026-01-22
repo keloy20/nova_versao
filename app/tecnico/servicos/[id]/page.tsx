@@ -3,63 +3,62 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://gerenciador-de-os.onrender.com";
+
 export default function AntesPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params.id as string;
+  const router = useRouter();
 
-  const [os, setOs] = useState<any>(null);
+  const [os, setOs] = useState<any | null>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [fotos, setFotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     carregarOS();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarOS() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch(
-        `https://gerenciador-de-os.onrender.com/projects/tecnico/view/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      if (!res.ok) {
-        throw new Error("Erro ao buscar OS");
-      }
+      if (!res.ok) throw new Error();
 
       const data = await res.json();
 
-      // 🔒 REGRA 1 — OS CONCLUÍDA → VISUALIZAÇÃO
+      // 🔒 CONCLUÍDA → VISUALIZAR
       if (data.status === "concluido") {
         router.replace(`/tecnico/servicos/${id}/visualizar`);
         return;
       }
 
-      // 🔁 REGRA 2 — ANTES JÁ FEITO → PULAR PARA DEPOIS
-      if (data.antes && data.antes.fotos && data.antes.fotos.length > 0) {
+      // 🔁 ANTES JÁ FEITO → DEPOIS
+      if (data.antes?.fotos?.length > 0) {
         router.replace(`/tecnico/servicos/${id}/depois`);
         return;
       }
 
       setOs(data);
-    } catch (err) {
+    } catch {
       alert("Erro ao carregar OS");
     } finally {
       setLoading(false);
     }
   }
 
-  function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files) return;
-    setFotos(Array.from(e.target.files));
+  function handleFotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.currentTarget.files;
+    if (!files) return;
+    setFotos((prev) => [...prev, ...Array.from(files)]);
   }
 
   function removerFoto(index: number) {
@@ -67,131 +66,80 @@ export default function AntesPage() {
   }
 
   async function salvarAntes() {
+    setSalvando(true);
     try {
       const token = localStorage.getItem("token");
-
       const formData = new FormData();
+
       formData.append("relatorio", relatorio);
       formData.append("observacao", observacao);
+      fotos.forEach((f) => formData.append("fotos", f));
 
-      fotos.forEach((foto) => {
-        formData.append("fotos", foto);
+      const res = await fetch(`${API_URL}/projects/tecnico/antes/${id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
-      const res = await fetch(
-        `https://gerenciador-de-os.onrender.com/projects/tecnico/antes/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error("Erro ao salvar ANTES");
-      }
+      if (!res.ok) throw new Error();
 
       router.push(`/tecnico/servicos/${id}/depois`);
-    } catch (err) {
+    } catch {
       alert("Erro ao salvar ANTES");
+    } finally {
+      setSalvando(false);
     }
   }
 
-  if (loading) {
-    return <div className="p-6">Carregando...</div>;
-  }
-
-  if (!os) {
-    return <div className="p-6">OS não encontrada</div>;
-  }
+  if (loading) return <p className="p-6">Carregando...</p>;
+  if (!os) return null; // 🔴 evita erro falso
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 text-black">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-2">
+    <div className="min-h-screen bg-gray-100 p-6 text-black">
+      <div className="max-w-3xl mx-auto bg-white p-6 rounded shadow">
+        <h1 className="text-2xl font-bold mb-4">
           ANTES – {os.osNumero}
         </h1>
 
-        {/* DATAS */}
-        <p className="text-sm text-gray-600 mb-4">
-          Criado em: {new Date(os.createdAt).toLocaleDateString("pt-BR")} •
-          Última atualização: {new Date(os.updatedAt).toLocaleDateString("pt-BR")}
-        </p>
+        <textarea
+          placeholder="Relatório"
+          className="border p-2 w-full mb-3"
+          value={relatorio}
+          onChange={(e) => setRelatorio(e.target.value)}
+        />
 
-        {/* INFO */}
-        <div className="mb-4 space-y-1">
-          <p><b>Cliente:</b> {os.cliente}</p>
-          {os.marca && <p><b>Marca:</b> {os.marca}</p>}
-          {os.unidade && <p><b>Unidade:</b> {os.unidade}</p>}
-          {os.endereco && <p><b>Endereço:</b> {os.endereco}</p>}
-        </div>
+        <textarea
+          placeholder="Observação"
+          className="border p-2 w-full mb-3"
+          value={observacao}
+          onChange={(e) => setObservacao(e.target.value)}
+        />
 
-        {os.detalhamento && (
-          <div className="mb-4 p-3 bg-yellow-50 border rounded">
-            <b>Detalhamento:</b>
-            <p>{os.detalhamento}</p>
-          </div>
-        )}
+        <input type="file" multiple accept="image/*" onChange={handleFotos} />
 
-        {/* RELATÓRIO */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Relatório (Antes)</label>
-          <textarea
-            value={relatorio}
-            onChange={(e) => setRelatorio(e.target.value)}
-            className="border p-2 rounded w-full min-h-[80px]"
-          />
-        </div>
-
-        {/* OBSERVAÇÃO */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Observação</label>
-          <textarea
-            value={observacao}
-            onChange={(e) => setObservacao(e.target.value)}
-            className="border p-2 rounded w-full min-h-[80px]"
-          />
-        </div>
-
-        {/* FOTOS */}
-        <div className="mb-4">
-          <label className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
-            📷 Adicionar fotos
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              hidden
-              onChange={handleFotosChange}
-            />
-          </label>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
-            {fotos.map((foto, index) => (
-              <div key={index} className="relative">
-                <img
-                  src={URL.createObjectURL(foto)}
-                  className="rounded border"
-                />
-                <button
-                  onClick={() => removerFoto(index)}
-                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-                >
-                  X
-                </button>
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-3 gap-2 mt-3">
+          {fotos.map((f, i) => (
+            <div key={i} className="relative">
+              <img
+                src={URL.createObjectURL(f)}
+                className="h-24 w-full object-cover"
+              />
+              <button
+                onClick={() => removerFoto(i)}
+                className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2"
+              >
+                X
+              </button>
+            </div>
+          ))}
         </div>
 
         <button
           onClick={salvarAntes}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg w-full"
+          disabled={salvando}
+          className="mt-4 bg-green-600 text-white w-full py-3 rounded"
         >
-          Salvar e ir para DEPOIS →
+          {salvando ? "Salvando..." : "Salvar e ir para DEPOIS"}
         </button>
       </div>
     </div>
