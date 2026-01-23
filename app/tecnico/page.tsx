@@ -155,67 +155,58 @@ export default function TecnicoPage() {
                 </span>
               </div>
 
-              {/* INFORMAÇÕES DA OS */}
-              <div className="space-y-1 text-sm text-gray-700">
-                <div>
-                  <b>Cliente:</b> {s.cliente}
-                </div>
+             {/* INFORMAÇÕES DA OS */}
+<div className="space-y-1 text-sm text-gray-700">
 
-               {/* SE NÃO FOR DASA → MOSTRA SUBCLIENTE */}
-{s.marca !== "DASA" && (s.Subcliente || s.subgrupo) && (
-  <div>
-    <b>Subcliente:</b> {s.Subcliente || s.subgrupo}
-  </div>
-)}
-
-{/* SE FOR DASA → MOSTRA MARCA + UNIDADE */}
-{s.marca === "DASA" && (
-  <>
-    {s.marca && (
+  {/* ===== DASA ===== */}
+  {s.marca === "DASA" && (
+    <>
       <div>
-        <b>Marca:</b> {s.marca}
+        <b>Cliente:</b> {s.cliente}
       </div>
-    )}
 
-    {s.unidade && (
-      <div>
-        <b>Unidade:</b> {s.unidade}
-      </div>
-    )}
-  </>
-)}
+      {s.marca && (
+        <div>
+          <b>Marca:</b> {s.marca}
+        </div>
+      )}
 
-                {s.marca && (
-                  <div>
-                    <b>Marca:</b> {s.marca}
-                  </div>
-                )}
+      {s.unidade && (
+        <div>
+          <b>Unidade:</b> {s.unidade}
+        </div>
+      )}
+    </>
+  )}
 
-                {s.unidade && (
-                  <div>
-                    <b>Unidade:</b> {s.unidade}
-                  </div>
-                )}
+  {/* ===== NÃO DASA (BRINKS, ETC) ===== */}
+  {s.marca !== "DASA" && (s.Subcliente || s.subgrupo) && (
+    <div>
+      <b>Subcliente:</b> {s.Subcliente || s.subgrupo}
+    </div>
+  )}
 
-                {s.endereco && (
-                  <div>
-                    <b>Endereço:</b> {s.endereco}
-                  </div>
-                )}
+  {/* ===== CAMPOS COMUNS ===== */}
+  {s.endereco && (
+    <div>
+      <b>Endereço:</b> {s.endereco}
+    </div>
+  )}
 
-                {s.telefone && (
-                  <div>
-                    <b>Telefone:</b> {s.telefone}
-                  </div>
-                )}
+  {s.telefone && (
+    <div>
+      <b>Telefone:</b> {s.telefone}
+    </div>
+  )}
 
-                {s.detalhamento && (
-                  <div className="mt-2 p-2 bg-yellow-50 border rounded text-sm">
-                    <b>Detalhamento:</b>
-                    <p>{s.detalhamento}</p>
-                  </div>
-                )}
-              </div>
+  {s.detalhamento && (
+    <div className="mt-2 p-2 bg-yellow-50 border rounded text-sm">
+      <b>Detalhamento:</b>
+      <p>{s.detalhamento}</p>
+    </div>
+  )}
+</div>
+
 
               {/* AÇÕES */}
               <div className="flex gap-2 mt-2 flex-wrap">
