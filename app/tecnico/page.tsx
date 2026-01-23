@@ -8,7 +8,9 @@ export default function TecnicoPage() {
   const router = useRouter();
 
   const [servicos, setServicos] = useState<any[]>([]);
-  const [filtro, setFiltro] = useState<"aguardando_tecnico" | "em_andamento" | "concluido" | "">("");
+  const [filtro, setFiltro] = useState<
+    "aguardando_tecnico" | "em_andamento" | "concluido" | ""
+  >("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,7 +42,6 @@ export default function TecnicoPage() {
 
       alert("Chamado iniciado!");
       carregarServicos();
-
     } catch (err: any) {
       alert("Erro ao abrir chamado: " + err.message);
     }
@@ -66,7 +67,6 @@ export default function TecnicoPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-6 text-black">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow p-6">
-
         {/* TOPO */}
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold">Painel do Técnico</h1>
@@ -82,28 +82,42 @@ export default function TecnicoPage() {
         <div className="flex gap-2 mb-4 flex-wrap">
           <button
             onClick={() => setFiltro("")}
-            className={`px-4 py-2 rounded ${filtro === "" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+            className={`px-4 py-2 rounded ${
+              filtro === "" ? "bg-blue-600 text-white" : "bg-gray-200"
+            }`}
           >
             Todos
           </button>
 
           <button
             onClick={() => setFiltro("aguardando_tecnico")}
-            className={`px-4 py-2 rounded ${filtro === "aguardando_tecnico" ? "bg-orange-500 text-white" : "bg-gray-200"}`}
+            className={`px-4 py-2 rounded ${
+              filtro === "aguardando_tecnico"
+                ? "bg-orange-500 text-white"
+                : "bg-gray-200"
+            }`}
           >
             Aguardando
           </button>
 
           <button
             onClick={() => setFiltro("em_andamento")}
-            className={`px-4 py-2 rounded ${filtro === "em_andamento" ? "bg-yellow-500 text-white" : "bg-gray-200"}`}
+            className={`px-4 py-2 rounded ${
+              filtro === "em_andamento"
+                ? "bg-yellow-500 text-white"
+                : "bg-gray-200"
+            }`}
           >
             Em andamento
           </button>
 
           <button
             onClick={() => setFiltro("concluido")}
-            className={`px-4 py-2 rounded ${filtro === "concluido" ? "bg-green-600 text-white" : "bg-gray-200"}`}
+            className={`px-4 py-2 rounded ${
+              filtro === "concluido"
+                ? "bg-green-600 text-white"
+                : "bg-gray-200"
+            }`}
           >
             Concluídos
           </button>
@@ -114,12 +128,13 @@ export default function TecnicoPage() {
           <p className="text-gray-600">Nenhum serviço encontrado.</p>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {listaFiltrada.map((s) => (
             <div
               key={s._id}
-              className="border rounded p-4 flex flex-col gap-2"
+              className="border rounded-lg p-4 flex flex-col gap-2"
             >
+              {/* CABEÇALHO */}
               <div className="flex justify-between items-center">
                 <span className="font-bold">{s.osNumero}</span>
 
@@ -140,16 +155,51 @@ export default function TecnicoPage() {
                 </span>
               </div>
 
-              <div>
-                <b>Cliente:</b> {s.cliente}
+              {/* INFORMAÇÕES DA OS */}
+              <div className="space-y-1 text-sm text-gray-700">
+                <div>
+                  <b>Cliente:</b> {s.cliente}
+                </div>
+
+                {(s.Subcliente || s.subgrupo) && (
+                  <div>
+                    <b>Subcliente:</b> {s.Subcliente || s.subgrupo}
+                  </div>
+                )}
+
+                {s.marca && (
+                  <div>
+                    <b>Marca:</b> {s.marca}
+                  </div>
+                )}
+
+                {s.unidade && (
+                  <div>
+                    <b>Unidade:</b> {s.unidade}
+                  </div>
+                )}
+
+                {s.endereco && (
+                  <div>
+                    <b>Endereço:</b> {s.endereco}
+                  </div>
+                )}
+
+                {s.telefone && (
+                  <div>
+                    <b>Telefone:</b> {s.telefone}
+                  </div>
+                )}
+
+                {s.detalhamento && (
+                  <div className="mt-2 p-2 bg-yellow-50 border rounded text-sm">
+                    <b>Detalhamento:</b>
+                    <p>{s.detalhamento}</p>
+                  </div>
+                )}
               </div>
 
-              {(s.Subcliente || s.subgrupo) && (
-                <div className="text-sm text-gray-600">
-                  <b>Subcliente:</b> {s.Subcliente || s.subgrupo}
-                </div>
-              )}
-
+              {/* AÇÕES */}
               <div className="flex gap-2 mt-2 flex-wrap">
                 {s.status === "aguardando_tecnico" && (
                   <button
@@ -162,7 +212,9 @@ export default function TecnicoPage() {
 
                 {s.status !== "aguardando_tecnico" && (
                   <button
-                    onClick={() => router.push(`/tecnico/servicos/${s._id}`)}
+                    onClick={() =>
+                      router.push(`/tecnico/servicos/${s._id}`)
+                    }
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
                   >
                     Ver
@@ -172,7 +224,6 @@ export default function TecnicoPage() {
             </div>
           ))}
         </div>
-
       </div>
     </div>
   );
