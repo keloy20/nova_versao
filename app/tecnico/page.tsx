@@ -157,37 +157,36 @@ export default function TecnicoPage() {
 
 
                     {/* INFORMAÇÕES DA OS */}
-<div className="space-y-1 text-sm text-gray-700">
-
-  {/* CLIENTE – SEMPRE MOSTRA */}
-  <div>
-    <b>Cliente:</b> {s.cliente}
-  </div>
-
-  {/* ===== DASA ===== */}
-  {s.cliente?.toUpperCase() === "DASA" && (
-    <>
-      {s.marca && (
-        <div>
-          <b>Marca:</b> {s.marca}
-        </div>
-      )}
-
-      {s.unidade && (
-        <div>
-          <b>Unidade:</b> {s.unidade}
-        </div>
-      )}
-    </>
-  )}
-
-  {/* ===== NÃO DASA (BRINKS, ETC) ===== */}
-  {s.cliente?.toUpperCase() !== "DASA" && s.Subcliente && (
+                    <div className="space-y-1 text-sm text-gray-700">
+  {/* CLIENTE */}
+  {s.cliente && (
     <div>
-      <b>Subcliente:</b> {s.Subcliente}
+      <b>Cliente:</b> {s.cliente}
     </div>
   )}
 
+  {/* SUBCLIENTE (Brinks, etc) */}
+  {(s.subcliente || s.Subcliente || s.subgrupo) && (
+    <div>
+      <b>Subcliente:</b>{" "}
+      {s.subcliente || s.Subcliente || s.subgrupo}
+    </div>
+  )}
+
+  {/* DASA */}
+  {s.marca && (
+    <div>
+      <b>Marca:</b> {s.marca}
+    </div>
+  )}
+
+  {s.unidade && (
+    <div>
+      <b>Unidade:</b> {s.unidade}
+    </div>
+  )}
+
+  {/* COMUNS */}
   {s.endereco && (
     <div>
       <b>Endereço:</b> {s.endereco}
@@ -207,6 +206,7 @@ export default function TecnicoPage() {
     </div>
   )}
 </div>
+
 
 
 
