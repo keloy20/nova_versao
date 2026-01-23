@@ -161,11 +161,29 @@ export default function TecnicoPage() {
                   <b>Cliente:</b> {s.cliente}
                 </div>
 
-                {(s.Subcliente || s.subgrupo) && (
-                  <div>
-                    <b>Subcliente:</b> {s.Subcliente || s.subgrupo}
-                  </div>
-                )}
+               {/* SE NÃO FOR DASA → MOSTRA SUBCLIENTE */}
+{s.marca !== "DASA" && (s.Subcliente || s.subgrupo) && (
+  <div>
+    <b>Subcliente:</b> {s.Subcliente || s.subgrupo}
+  </div>
+)}
+
+{/* SE FOR DASA → MOSTRA MARCA + UNIDADE */}
+{s.marca === "DASA" && (
+  <>
+    {s.marca && (
+      <div>
+        <b>Marca:</b> {s.marca}
+      </div>
+    )}
+
+    {s.unidade && (
+      <div>
+        <b>Unidade:</b> {s.unidade}
+      </div>
+    )}
+  </>
+)}
 
                 {s.marca && (
                   <div>
