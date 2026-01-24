@@ -7,11 +7,15 @@ export default function AdminClientesPage() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // criar cliente
   const [cliente, setCliente] = useState("");
   const [subcliente, setSubcliente] = useState("");
   const [endereco, setEndereco] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
+
+  // editar cliente
+  const [clienteEditando, setClienteEditando] = useState<any>(null);
 
   useEffect(() => {
     carregarClientes();
@@ -28,6 +32,7 @@ export default function AdminClientesPage() {
     }
   }
 
+  // ===== CRIAR =====
   async function criarCliente() {
     if (!cliente) {
       alert("Cliente é obrigatório");
@@ -58,6 +63,23 @@ export default function AdminClientesPage() {
     }
   }
 
+  // ===== SALVAR EDIÇÃO =====
+  async function salvarEdicaoCliente() {
+    try {
+      await apiFetch(`/clientes/${clienteEditando._id}`, {
+        method: "PUT",
+        body: JSON.stringify(clienteEditando),
+      });
+
+      alert("Cliente atualizado com sucesso!");
+      setClienteEditando(null);
+      carregarClientes();
+    } catch (err: any) {
+      alert("Erro ao atualizar cliente: " + err.message);
+    }
+  }
+
+  // ===== EXCLUIR =====
   async function excluirCliente(id: string) {
     const ok = confirm("Deseja excluir este cliente?");
     if (!ok) return;
@@ -80,7 +102,7 @@ export default function AdminClientesPage() {
 
         <h1 className="text-2xl font-bold">Clientes</h1>
 
-        {/* FORM CRIAR */}
+        {/* ===== CRIAR CLIENTE ===== */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <input
             className="border p-2 rounded"
@@ -125,26 +147,38 @@ export default function AdminClientesPage() {
           Salvar Cliente
         </button>
 
-        {/* LISTA */}
+        {/* ===== LISTA ===== */}
         <div className="border-t pt-6 space-y-3">
           {clientes.map((c) => (
             <div
               key={c._id}
-              className="border rounded p-4 flex flex-col md:flex-row md:justify-between gap-2"
+              className="border rounded p-4 flex flex-col gap-2"
             >
-              <div className="text-sm space-y-1">
-                <div><b>Cliente:</b> {c.cliente}</div>
-                {c.subcliente && <div><b>Subcliente:</b> {c.subcliente}</div>}
-                {c.endereco && <div><b>Endereço:</b> {c.endereco}</div>}
-                {c.telefone && <div><b>Telefone:</b> {c.telefone}</div>}
+              <div className="flex justify-between items-center">
+                <div className="font-bold">
+                  {c.cliente}
+                  {c.subcliente && ` — ${c.subcliente}`}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setClienteEditando(c)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                  >
+                    Editar
+                  </button>
+
+                  <button
+                    onClick={() => excluirCliente(c._id)}
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                  >
+                    Excluir
+                  </button>
+                </div>
               </div>
 
-              <button
-                onClick={() => excluirCliente(c._id)}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm"
-              >
-                Excluir
-              </button>
+              {c.endereco && <div><b>Endereço:</b> {c.endereco}</div>}
+              {c.telefone && <div><b>Telefone:</b> {c.telefone}</div>}
             </div>
           ))}
 
@@ -152,8 +186,68 @@ export default function AdminClientesPage() {
             <p className="text-gray-600">Nenhum cliente cadastrado.</p>
           )}
         </div>
-
       </div>
+
+      {/* ===== MODAL EDITAR ===== */}
+      {clienteEditando && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md space-y-3">
+            <h2 className="text-xl font-bold">Editar Cliente</h2>
+
+            <input
+              className="border p-2 w-full rounded"
+              placeholder="Cliente"
+              value={clienteEditando.cliente}
+              onChange={(e) =>
+                setClienteEditando({ ...clienteEditando, cliente: e.target.value })
+              }
+            />
+
+            <input
+              className="border p-2 w-full rounded"
+              placeholder="Subcliente / Unidade"
+              value={clienteEditando.subcliente || ""}
+              onChange={(e) =>
+                setClienteEditando({ ...clienteEditando, subcliente: e.target.value })
+              }
+            />
+
+            <input
+              className="border p-2 w-full rounded"
+              placeholder="Endereço"
+              value={clienteEditando.endereco || ""}
+              onChange={(e) =>
+                setClienteEditando({ ...clienteEditando, endereco: e.target.value })
+              }
+            />
+
+            <input
+              className="border p-2 w-full rounded"
+              placeholder="Telefone"
+              value={clienteEditando.telefone || ""}
+              onChange={(e) =>
+                setClienteEditando({ ...clienteEditando, telefone: e.target.value })
+              }
+            />
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={salvarEdicaoCliente}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded w-full"
+              >
+                Salvar
+              </button>
+
+              <button
+                onClick={() => setClienteEditando(null)}
+                className="bg-gray-300 px-4 py-2 rounded w-full"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
