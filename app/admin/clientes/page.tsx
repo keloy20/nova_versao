@@ -10,6 +10,7 @@ export default function AdminClientesPage() {
   // criar cliente
   const [cliente, setCliente] = useState("");
   const [subcliente, setSubcliente] = useState("");
+  const [marca, setMarca] = useState(""); // 🔥 NOVO
   const [endereco, setEndereco] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
@@ -45,6 +46,7 @@ export default function AdminClientesPage() {
         body: JSON.stringify({
           cliente,
           subcliente,
+          marca, // 🔥
           endereco,
           telefone,
           email,
@@ -54,6 +56,7 @@ export default function AdminClientesPage() {
       alert("Cliente criado com sucesso!");
       setCliente("");
       setSubcliente("");
+      setMarca("");
       setEndereco("");
       setTelefone("");
       setEmail("");
@@ -120,6 +123,13 @@ export default function AdminClientesPage() {
 
           <input
             className="border p-2 rounded"
+            placeholder="Marca (opcional – DASA)"
+            value={marca}
+            onChange={(e) => setMarca(e.target.value)}
+          />
+
+          <input
+            className="border p-2 rounded"
             placeholder="Endereço"
             value={endereco}
             onChange={(e) => setEndereco(e.target.value)}
@@ -150,10 +160,7 @@ export default function AdminClientesPage() {
         {/* ===== LISTA ===== */}
         <div className="border-t pt-6 space-y-3">
           {clientes.map((c) => (
-            <div
-              key={c._id}
-              className="border rounded p-4 flex flex-col gap-2"
-            >
+            <div key={c._id} className="border rounded p-4 flex flex-col gap-2">
               <div className="flex justify-between items-center">
                 <div className="font-bold">
                   {c.cliente}
@@ -177,6 +184,7 @@ export default function AdminClientesPage() {
                 </div>
               </div>
 
+              {c.marca && <div><b>Marca:</b> {c.marca}</div>}
               {c.endereco && <div><b>Endereço:</b> {c.endereco}</div>}
               {c.telefone && <div><b>Telefone:</b> {c.telefone}</div>}
             </div>
@@ -209,6 +217,15 @@ export default function AdminClientesPage() {
               value={clienteEditando.subcliente || ""}
               onChange={(e) =>
                 setClienteEditando({ ...clienteEditando, subcliente: e.target.value })
+              }
+            />
+
+            <input
+              className="border p-2 w-full rounded"
+              placeholder="Marca (opcional – DASA)"
+              value={clienteEditando.marca || ""}
+              onChange={(e) =>
+                setClienteEditando({ ...clienteEditando, marca: e.target.value })
               }
             />
 
