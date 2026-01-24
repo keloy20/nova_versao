@@ -8,15 +8,18 @@ export default function NovaOSPage() {
   const router = useRouter();
 
   const [clientes, setClientes] = useState<any[]>([]);
-  const [subclientes, setSubclientes] = useState<any[]>([]);
   const [tecnicos, setTecnicos] = useState<any[]>([]);
 
   const [cliente, setCliente] = useState("");
-  const [subclienteId, setSubclienteId] = useState("");
+  const [subcliente, setSubcliente] = useState("");
+  const [marca, setMarca] = useState("");
   const [endereco, setEndereco] = useState("");
   const [telefone, setTelefone] = useState("");
   const [detalhamento, setDetalhamento] = useState("");
   const [tecnicoId, setTecnicoId] = useState("");
+
+  const [buscaDasa, setBuscaDasa] = useState("");
+  const [listaRelacionada, setListaRelacionada] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(false);
 
@@ -45,34 +48,39 @@ export default function NovaOSPage() {
 
   function selecionarCliente(nome: string) {
     setCliente(nome);
-    setSubclienteId("");
+    setSubcliente("");
+    setMarca("");
     setEndereco("");
     setTelefone("");
+    setBuscaDasa("");
 
-    const lista = clientes.filter(
+    const relacionados = clientes.filter(
       (c) => c.cliente.toLowerCase() === nome.toLowerCase()
     );
 
-    setSubclientes(lista);
+    setListaRelacionada(relacionados);
   }
 
-  function selecionarSubcliente(id: string) {
-    setSubclienteId(id);
-
-    const selecionado = subclientes.find((s) => s._id === id);
-    if (selecionado) {
-      setEndereco(selecionado.endereco || "");
-      setTelefone(selecionado.telefone || "");
-    }
+  function selecionarRelacionado(item: any) {
+    setSubcliente(item.subcliente || "");
+    setMarca(item.marca || "");
+    setEndereco(item.endereco || "");
+    setTelefone(item.telefone || "");
   }
+
+  const isDASA = cliente.toLowerCase() === "dasa";
+
+  const listaDasaFiltrada = listaRelacionada.filter((c) =>
+    `${c.subcliente || ""} ${c.marca || ""}`
+      .toLowerCase()
+      .includes(buscaDasa.toLowerCase())
+  );
 
   async function salvarOS() {
     if (!cliente || !tecnicoId) {
       alert("Cliente e técnico são obrigatórios");
       return;
     }
-
-    const sub = subclientes.find((s) => s._id === subclienteId);
 
     setLoading(true);
 
@@ -81,7 +89,8 @@ export default function NovaOSPage() {
         method: "POST",
         body: JSON.stringify({
           cliente,
-          subcliente: sub?.subcliente || "",
+          subcliente,
+          marca,
           endereco,
           telefone,
           detalhamento,
@@ -118,20 +127,65 @@ export default function NovaOSPage() {
           ))}
         </select>
 
-        {/* SUBCLIENTE */}
-        {subclientes.length > 0 && (
+        {/* ===== DASA ===== */}
+        {isDASA && listaRelacionada.length > 0 && (
+          <>
+            <input
+              className="border p-2 rounded w-full"
+              placeholder="Buscar unidade ou marca (ex: João Pessoa, CERPE)"
+              value={buscaDasa}
+              onChange={(e) => setBuscaDasa(e.target.value)}
+            />
+
+            <div className="border rounded max-h-60 overflow-y-auto">
+              {listaDasaFiltrada.map((c) => (
+                <div
+                  key={c._id}
+                  onClick={() => selecionarRelacionado(c)}
+                  className="p-2 cursor-pointer hover:bg-blue-100 border-b"
+                >
+                  <b>{c.subcliente}</b>
+                  {c.marca && ` — ${c.marca}`}
+                </div>
+              ))}
+
+              {listaDasaFiltrada.length === 0 && (
+                <p className="p-2 text-sm text-gray-500">
+                  Nenhum resultado encontrado
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ===== NÃO DASA ===== */}
+        {!isDASA && listaRelacionada.length > 0 && (
           <select
             className="border p-2 rounded w-full"
-            value={subclienteId}
-            onChange={(e) => selecionarSubcliente(e.target.value)}
+            value={subcliente}
+            onChange={(e) => {
+              const item = listaRelacionada.find(
+                (i) => i.subcliente === e.target.value
+              );
+              if (item) selecionarRelacionado(item);
+            }}
           >
             <option value="">Selecione o subcliente</option>
-            {subclientes.map((s) => (
-              <option key={s._id} value={s._id}>
-                {s.subcliente || "Sem subcliente"}
+            {listaRelacionada.map((c) => (
+              <option key={c._id} value={c.subcliente}>
+                {c.subcliente}
               </option>
             ))}
           </select>
+        )}
+
+        {/* MARCA */}
+        {marca && (
+          <input
+            className="border p-2 rounded w-full bg-gray-100"
+            value={`Marca: ${marca}`}
+            readOnly
+          />
         )}
 
         {/* ENDEREÇO */}
