@@ -16,6 +16,7 @@ export default function TecnicoServicoPage() {
   useEffect(() => {
     if (!id) return;
     carregarOS();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function carregarOS() {
@@ -23,25 +24,37 @@ export default function TecnicoServicoPage() {
       const token = localStorage.getItem("token");
 
       const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      if (!res.ok) throw new Error();
+      // 🔴 IMPORTANTE: loga a resposta inválida
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Resposta inválida do backend:", text);
+        throw new Error("Resposta não JSON");
+      }
 
       const data = await res.json();
 
+      // 🔒 OS concluída → visualizar
       if (data.status === "concluido") {
         router.replace(`/tecnico/servicos/${id}/visualizar`);
         return;
       }
 
+      // 🔁 ANTES já feito → depois
       if (data.antes?.fotos?.length > 0) {
         router.replace(`/tecnico/servicos/${id}/depois`);
         return;
       }
 
+      // 🔁 padrão → antes
       router.replace(`/tecnico/servicos/${id}/antes`);
-    } catch {
+    } catch (err) {
+      console.error("Erro ao carregar OS do técnico:", err);
+      alert("Erro ao carregar OS. Faça login novamente.");
       router.replace("/tecnico");
     } finally {
       setLoading(false);
