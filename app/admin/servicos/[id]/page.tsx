@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import { apiFetch } from "@/app/lib/api";
 import jsPDF from "jspdf";
 
+const API_URL = "https://gerenciador-de-os.onrender.com";
+
 export default function DetalheOSPage() {
   const router = useRouter();
   const params = useParams();
@@ -33,251 +35,136 @@ export default function DetalheOSPage() {
     if (!ok) return;
 
     try {
-      await apiFetch(`/projects/admin/cancelar/${id}`, {
-        method: "PUT",
-      });
-
+      await apiFetch(`/projects/admin/cancelar/${id}`, { method: "PUT" });
       alert("OS cancelada com sucesso!");
-      await carregarOS(); // 🔥 atualiza na hora
-
+      carregarOS();
     } catch (err: any) {
       alert("Erro ao cancelar: " + err.message);
     }
   }
 
-  function gerarPDF() {
-  if (!os) return;
+  // 🔥 converte imagem da API em base64 (PDF)
+  async function imageToBase64(url: string) {
+    const res = await fetch(url);
+    const blob = await res.blob();
 
-  const doc = new jsPDF();
-  let y = 10;
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  }
 
-  doc.setFontSize(14);
-  doc.text(`Ordem de Serviço - ${os.osNumero || ""}`, 10, y);
-  y += 10;
+  async function gerarPDF() {
+    if (!os) return;
 
-  doc.setFontSize(10);
-  doc.text(`Status: ${os.status}`, 10, y); y += 6;
-  doc.text(`Cliente: ${os.cliente}`, 10, y); y += 6;
-  doc.text(`Marca: ${os.marca || "-"}`, 10, y); y += 6;
-  doc.text(`Unidade: ${os.unidade || "-"}`, 10, y); y += 6;
-  doc.text(`Endereço: ${os.endereco || "-"}`, 10, y); y += 6;
-  doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, 10, y); y += 10;
+    const doc = new jsPDF();
+    let y = 10;
 
-  doc.text("Detalhamento do Serviço:", 10, y); 
-  y += 6;
-  doc.text(os.detalhamento || "-", 10, y, { maxWidth: 180 });
-  y += 10;
+    doc.setFontSize(14);
+    doc.text(`Ordem de Serviço - ${os.osNumero}`, 10, y);
+    y += 10;
 
-  // ===== ANTES =====
-  doc.text("ANTES:", 10, y); 
-  y += 6;
+    doc.setFontSize(10);
+    doc.text(`Cliente: ${os.cliente}`, 10, y); y += 6;
+    doc.text(`Marca: ${os.marca || "-"}`, 10, y); y += 6;
+    doc.text(`Unidade: ${os.unidade || "-"}`, 10, y); y += 6;
+    doc.text(`Endereço: ${os.endereco || "-"}`, 10, y); y += 6;
+    doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, 10, y); y += 10;
 
-  doc.text(os.antes?.relatorio || "-", 10, y, { maxWidth: 180 });
-  y += 6;
+    doc.text("DETALHAMENTO:", 10, y); y += 6;
+    doc.text(os.detalhamento || "-", 10, y, { maxWidth: 180 });
+    y += 10;
 
-  if (os.antes?.fotos && os.antes.fotos.length > 0) {
-    for (const foto of os.antes.fotos) {
-      const imgData = `data:${foto.tipo};base64,${foto.base64}`;
-      doc.addImage(imgData, "JPEG", 10, y, 50, 50);
-      y += 55;
+    // ===== ANTES =====
+    doc.text("ANTES:", 10, y); y += 6;
+    doc.text(os.antes?.relatorio || "-", 10, y, { maxWidth: 180 });
+    y += 6;
 
-      if (y > 250) {
-        doc.addPage();
-        y = 10;
+    if (os.antes?.fotos?.length) {
+      for (const foto of os.antes.fotos) {
+        const base64 = await imageToBase64(`${API_URL}${foto}`);
+        doc.addImage(base64, "JPEG", 10, y, 60, 60);
+        y += 70;
+
+        if (y > 260) {
+          doc.addPage();
+          y = 10;
+        }
       }
     }
-  }
 
-  y += 10;
+    y += 10;
 
-  // ===== DEPOIS =====
-  doc.text("DEPOIS:", 10, y); 
-  y += 6;
+    // ===== DEPOIS =====
+    doc.text("DEPOIS:", 10, y); y += 6;
+    doc.text(os.depois?.relatorio || "-", 10, y, { maxWidth: 180 });
+    y += 6;
 
-  doc.text(os.depois?.relatorio || "-", 10, y, { maxWidth: 180 });
-  y += 6;
+    if (os.depois?.fotos?.length) {
+      for (const foto of os.depois.fotos) {
+        const base64 = await imageToBase64(`${API_URL}${foto}`);
+        doc.addImage(base64, "JPEG", 10, y, 60, 60);
+        y += 70;
 
-  if (os.depois?.fotos && os.depois.fotos.length > 0) {
-    for (const foto of os.depois.fotos) {
-      const imgData = `data:${foto.tipo};base64,${foto.base64}`;
-      doc.addImage(imgData, "JPEG", 10, y, 50, 50);
-      y += 55;
-
-      if (y > 250) {
-        doc.addPage();
-        y = 10;
+        if (y > 260) {
+          doc.addPage();
+          y = 10;
+        }
       }
     }
+
+    doc.save(`OS-${os.osNumero}.pdf`);
   }
 
-  doc.save(`OS-${os.osNumero || id}.pdf`);
-}
-
-
-  if (loading) {
-    return <div className="p-6 text-center text-gray-700">Carregando...</div>;
-  }
-
-  if (!os) {
-    return <div className="p-6 text-center text-red-600">OS não encontrada</div>;
-  }
-
-  const statusColor =
-    os.status === "cancelado"
-      ? "bg-red-100 text-red-700 border-red-300"
-      : os.status === "concluido"
-      ? "bg-green-100 text-green-700 border-green-300"
-      : os.status === "em_andamento"
-      ? "bg-blue-100 text-blue-700 border-blue-300"
-      : "bg-yellow-100 text-yellow-700 border-yellow-300";
+  if (loading) return <p className="p-6">Carregando...</p>;
+  if (!os) return <p className="p-6">OS não encontrada</p>;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 flex justify-center">
-      <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6">
+    <div className="min-h-screen bg-gray-100 p-6 flex justify-center">
+      <div className="bg-white max-w-xl w-full p-6 rounded-xl shadow">
 
-        {/* TOPO */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Detalhes da OS</h1>
-
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={gerarPDF}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition"
-            >
-              Gerar PDF
-            </button>
-
-            <button
-              onClick={() => router.push(`/admin/servicos/${id}/editar`)}
-              className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg transition"
-            >
-              ✏️ Alterar
-            </button>
-
-            <button
-              onClick={cancelarOS}
-              className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-lg transition"
-            >
-              ❌ Cancelar
-            </button>
-
-            <button
-              onClick={() => router.back()}
-              className="bg-gray-300 hover:bg-gray-400 text-gray-800 text-sm px-4 py-2 rounded-lg transition"
-            >
-              Voltar
-            </button>
-          </div>
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <button onClick={gerarPDF} className="bg-blue-600 text-white px-4 py-2 rounded">
+            Gerar PDF
+          </button>
+          <button onClick={() => router.back()} className="bg-gray-300 px-4 py-2 rounded">
+            Voltar
+          </button>
         </div>
 
-        {/* BLOCO DADOS */}
-        <div className="space-y-4 text-sm text-gray-900">
+        <p><b>Cliente:</b> {os.cliente}</p>
+        <p><b>Marca:</b> {os.marca || "-"}</p>
+        <p><b>Unidade:</b> {os.unidade || "-"}</p>
 
-          {/* OS */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">NÚMERO DA OS</p>
-            <p className="font-bold text-base">{os.osNumero || "-"}</p>
-          </div>
+        {/* ANTES */}
+        <h3 className="mt-4 font-bold">ANTES</h3>
+        <p>{os.antes?.relatorio || "-"}</p>
 
-          {/* STATUS */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">STATUS</p>
-            <span className={`inline-block px-3 py-1 rounded-full text-sm border ${statusColor}`}>
-              {os.status}
-            </span>
-          </div>
-
-          {/* CLIENTE */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">CLIENTE</p>
-            <p className="font-bold">{os.cliente}</p>
-          </div>
-
-          {/* SUBCLIENTE */}
-          {(os.Subcliente || os.subgrupo) && (
-            <div>
-              <p className="text-xs text-gray-600 font-semibold">SUBCLIENTE</p>
-              <p className="font-bold">{os.Subcliente || os.subgrupo}</p>
-            </div>
-          )}
-
-          {/* MARCA */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">MARCA</p>
-            <p className="font-bold">{os.marca || "-"}</p>
-          </div>
-
-          {/* UNIDADE */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">UNIDADE</p>
-            <p className="font-bold">{os.unidade || "-"}</p>
-          </div>
-
-          {/* ENDEREÇO */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">ENDEREÇO</p>
-            <p className="font-bold">{os.endereco || "-"}</p>
-          </div>
-
-          {/* TELEFONE */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">TELEFONE</p>
-            <p className="font-bold">{os.telefone || "-"}</p>
-          </div>
-
-          {/* TÉCNICO */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">TÉCNICO</p>
-            <p className="font-bold">{os.tecnico?.nome || "-"}</p>
-          </div>
-
-          {/* DETALHAMENTO */}
-          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-            <p className="text-xs text-blue-700 font-semibold mb-1">DETALHAMENTO DO SERVIÇO</p>
-            <p className="text-gray-900 whitespace-pre-line">{os.detalhamento || "-"}</p>
-          </div>
-
-          {/* ANTES */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-300">
-            <p className="text-xs text-gray-700 font-semibold mb-1">ANTES</p>
-            <p className="text-gray-900 mb-2 whitespace-pre-line">
-              {os.antes?.relatorio || "-"}
-            </p>
-          </div>
-          {os.antes?.fotos && os.antes.fotos.length > 0 && (
-  <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
-    {os.antes.fotos.map((foto: any, index: number) => (
-      <img
-        key={index}
-        src={`data:${foto.tipo};base64,${foto.base64}`}
-        className="w-full h-32 object-cover rounded border"
-      />
-    ))}
-  </div>
-)}
-
-
-          {/* DEPOIS */}
-          <div className="bg-green-50 p-3 rounded-lg border border-green-300">
-            <p className="text-xs text-green-700 font-semibold mb-1">DEPOIS</p>
-            <p className="text-gray-900 mb-2 whitespace-pre-line">
-              {os.depois?.relatorio || "-"}
-            </p>
-          </div>
-          {os.depois?.fotos && os.depois.fotos.length > 0 && (
-  <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
-    {os.depois.fotos.map((foto: any, index: number) => (
-      <img
-        key={index}
-        src={`data:${foto.tipo};base64,${foto.base64}`}
-        className="w-full h-32 object-cover rounded border"
-      />
-    ))}
-  </div>
-)}
-
-
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          {os.antes?.fotos?.map((foto: string, i: number) => (
+            <img
+              key={i}
+              src={`${API_URL}${foto}`}
+              className="h-32 w-full object-cover rounded border"
+            />
+          ))}
         </div>
+
+        {/* DEPOIS */}
+        <h3 className="mt-4 font-bold">DEPOIS</h3>
+        <p>{os.depois?.relatorio || "-"}</p>
+
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          {os.depois?.fotos?.map((foto: string, i: number) => (
+            <img
+              key={i}
+              src={`${API_URL}${foto}`}
+              className="h-32 w-full object-cover rounded border"
+            />
+          ))}
+        </div>
+
       </div>
     </div>
   );
