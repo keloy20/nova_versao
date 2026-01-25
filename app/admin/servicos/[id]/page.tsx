@@ -29,38 +29,26 @@ export default function DetalheOSPage() {
     }
   }
 
-  // 🔥 FUNÇÃO DEFINITIVA PRA IMAGEM (NÃO MUDA MAIS)
+  /**
+   * 🚨 REGRA ABSOLUTA:
+   * - começou com "/uploads" => URL
+   * - QUALQUER outra coisa => BASE64
+   */
   function resolveImageSrc(foto: any) {
-    if (!foto) return "";
+    if (!foto || typeof foto !== "string") return "";
 
-    // veio como objeto (erro backend)
-    if (typeof foto === "object") {
-      console.error("Foto inválida (objeto):", foto);
-      return "";
-    }
-
-    // data:image completo
-    if (typeof foto === "string" && foto.startsWith("data:image")) {
-      return foto;
-    }
-
-    // base64 puro (SEM prefixo)
-    if (
-      typeof foto === "string" &&
-      foto.length > 50 &&
-      !foto.startsWith("/") &&
-      !foto.startsWith("http")
-    ) {
-      return `data:image/jpeg;base64,${foto}`;
-    }
-
-    // caminho salvo no backend (/uploads/...)
-    if (typeof foto === "string" && foto.startsWith("/")) {
+    // URL salva no backend
+    if (foto.startsWith("/uploads")) {
       return `${API_URL}${foto}`;
     }
 
-    console.error("Formato de imagem desconhecido:", foto);
-    return "";
+    // já é dataURL
+    if (foto.startsWith("data:image")) {
+      return foto;
+    }
+
+    // QUALQUER outro caso = base64 puro
+    return `data:image/jpeg;base64,${foto}`;
   }
 
   async function gerarPDF() {
@@ -81,51 +69,29 @@ export default function DetalheOSPage() {
     doc.text(`Endereço: ${os.endereco || "-"}`, 10, y); y += 6;
     doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, 10, y); y += 10;
 
-    doc.text("DETALHAMENTO:", 10, y); y += 6;
-    doc.text(os.detalhamento || "-", 10, y, { maxWidth: 180 });
-    y += 10;
-
-    // ===== ANTES =====
     doc.text("ANTES:", 10, y); y += 6;
     doc.text(os.antes?.relatorio || "-", 10, y, { maxWidth: 180 });
     y += 6;
 
-    if (os.antes?.fotos?.length) {
-      for (const foto of os.antes.fotos) {
-        const img = resolveImageSrc(foto);
-        if (img) {
-          doc.addImage(img, "JPEG", 10, y, 60, 60);
-          y += 70;
-        }
-
-        if (y > 260) {
-          doc.addPage();
-          y = 10;
-        }
-      }
-    }
+    os.antes?.fotos?.forEach((foto: string) => {
+      const img = resolveImageSrc(foto);
+      doc.addImage(img, "JPEG", 10, y, 60, 60);
+      y += 70;
+      if (y > 260) { doc.addPage(); y = 10; }
+    });
 
     y += 6;
 
-    // ===== DEPOIS =====
     doc.text("DEPOIS:", 10, y); y += 6;
     doc.text(os.depois?.relatorio || "-", 10, y, { maxWidth: 180 });
     y += 6;
 
-    if (os.depois?.fotos?.length) {
-      for (const foto of os.depois.fotos) {
-        const img = resolveImageSrc(foto);
-        if (img) {
-          doc.addImage(img, "JPEG", 10, y, 60, 60);
-          y += 70;
-        }
-
-        if (y > 260) {
-          doc.addPage();
-          y = 10;
-        }
-      }
-    }
+    os.depois?.fotos?.forEach((foto: string) => {
+      const img = resolveImageSrc(foto);
+      doc.addImage(img, "JPEG", 10, y, 60, 60);
+      y += 70;
+      if (y > 260) { doc.addPage(); y = 10; }
+    });
 
     doc.save(`OS-${os.osNumero}.pdf`);
   }
@@ -137,12 +103,8 @@ export default function DetalheOSPage() {
     <div className="min-h-screen bg-gray-100 p-6 flex justify-center text-black">
       <div className="bg-white max-w-xl w-full p-6 rounded-xl shadow">
 
-        {/* BOTÕES */}
-        <div className="flex gap-2 mb-4 flex-wrap">
-          <button
-            onClick={gerarPDF}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
-          >
+        <div className="flex gap-2 mb-4">
+          <button onClick={gerarPDF} className="bg-blue-600 text-white px-4 py-2 rounded">
             Gerar PDF
           </button>
 
@@ -153,43 +115,27 @@ export default function DetalheOSPage() {
             Editar
           </button>
 
-          <button
-            onClick={() => router.back()}
-            className="bg-gray-300 px-4 py-2 rounded"
-          >
+          <button onClick={() => router.back()} className="bg-gray-300 px-4 py-2 rounded">
             Voltar
           </button>
         </div>
 
         <p><b>Cliente:</b> {os.cliente}</p>
         <p><b>Marca:</b> {os.marca || "-"}</p>
-        <p><b>Unidade:</b> {os.unidade || "-"}</p>
 
-        {/* ANTES */}
         <h3 className="mt-4 font-bold">ANTES</h3>
-        <p>{os.antes?.relatorio || "-"}</p>
-
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          {os.antes?.fotos?.map((foto: any, i: number) => (
-            <img
-              key={i}
-              src={resolveImageSrc(foto)}
-              className="h-32 w-full object-cover rounded border"
-            />
+        <p>{os.antes?.relatorio}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {os.antes?.fotos?.map((f: string, i: number) => (
+            <img key={i} src={resolveImageSrc(f)} className="h-32 w-full object-cover border rounded" />
           ))}
         </div>
 
-        {/* DEPOIS */}
         <h3 className="mt-4 font-bold">DEPOIS</h3>
-        <p>{os.depois?.relatorio || "-"}</p>
-
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          {os.depois?.fotos?.map((foto: any, i: number) => (
-            <img
-              key={i}
-              src={resolveImageSrc(foto)}
-              className="h-32 w-full object-cover rounded border"
-            />
+        <p>{os.depois?.relatorio}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {os.depois?.fotos?.map((f: string, i: number) => (
+            <img key={i} src={resolveImageSrc(f)} className="h-32 w-full object-cover border rounded" />
           ))}
         </div>
 
