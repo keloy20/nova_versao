@@ -3,15 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://gerenciador-de-os.onrender.com";
+const API_URL = "https://gerenciador-de-os.onrender.com";
 
 export default function DepoisPage() {
-  const params = useParams();
-  const id = params.id as string;
+  const { id } = useParams() as { id: string };
   const router = useRouter();
 
-  const [os, setOs] = useState<any | null>(null);
+  const [os, setOs] = useState<any>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [fotos, setFotos] = useState<File[]>([]);
@@ -20,12 +18,16 @@ export default function DepoisPage() {
 
   useEffect(() => {
     carregarOS();
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarOS() {
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
 
       const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -35,7 +37,6 @@ export default function DepoisPage() {
 
       const data = await res.json();
 
-      // 🔒 já finalizado → visualizar
       if (data.status === "concluido") {
         router.replace(`/tecnico/servicos/${id}/visualizar`);
         return;
@@ -44,6 +45,7 @@ export default function DepoisPage() {
       setOs(data);
     } catch {
       alert("Erro ao carregar OS");
+      router.replace("/tecnico");
     } finally {
       setLoading(false);
     }
@@ -52,11 +54,12 @@ export default function DepoisPage() {
   function handleFotos(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.currentTarget.files;
     if (!files) return;
+
     setFotos((prev) => [...prev, ...Array.from(files)]);
   }
 
-  function removerFoto(i: number) {
-    setFotos((prev) => prev.filter((_, idx) => idx !== i));
+  function removerFoto(index: number) {
+    setFotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function salvarDepois() {
@@ -87,51 +90,50 @@ export default function DepoisPage() {
   }
 
   if (loading) return <p className="p-6">Carregando...</p>;
-  if (!os) return <p className="p-6">OS não encontrada</p>;
+  if (!os) return null;
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 text-black">
-      <div className="max-w-3xl mx-auto bg-white p-6 rounded shadow">
+      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
         <h1 className="text-2xl font-bold mb-4">
           DEPOIS – {os.osNumero}
         </h1>
 
         <textarea
-          placeholder="Relatório final"
           className="border p-2 w-full mb-3"
+          placeholder="Relatório final"
           value={relatorio}
           onChange={(e) => setRelatorio(e.target.value)}
         />
 
         <textarea
+          className="border p-2 w-full mb-4"
           placeholder="Observação final"
-          className="border p-2 w-full mb-3"
           value={observacao}
           onChange={(e) => setObservacao(e.target.value)}
         />
 
         <label className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
-  📷 Adicionar fotos (câmera ou galeria)
-  <input
-    type="file"
-    accept="image/*"
-    multiple
-    hidden
-    onChange={handleFotos}
-  />
-</label>
+          📷 Adicionar fotos
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={handleFotos}
+          />
+        </label>
 
-
-        <div className="grid grid-cols-3 gap-2 mt-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
           {fotos.map((f, i) => (
             <div key={i} className="relative">
               <img
                 src={URL.createObjectURL(f)}
-                className="h-24 w-full object-cover"
+                className="h-28 w-full object-cover rounded border"
               />
               <button
                 onClick={() => removerFoto(i)}
-                className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2"
+                className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
               >
                 X
               </button>
@@ -142,7 +144,7 @@ export default function DepoisPage() {
         <button
           onClick={salvarDepois}
           disabled={salvando}
-          className="mt-4 bg-green-600 text-white w-full py-3 rounded"
+          className="mt-6 bg-green-600 hover:bg-green-700 text-white w-full py-3 rounded"
         >
           {salvando ? "Finalizando..." : "Finalizar serviço"}
         </button>
