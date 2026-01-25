@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://gerenciador-de-os.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 export default function TecnicoServicoPage() {
   const params = useParams();
@@ -28,53 +27,44 @@ export default function TecnicoServicoPage() {
         return;
       }
 
-      const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await fetch(
+        `${API_URL}/projects/tecnico/view/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       const text = await res.text();
 
       if (!res.ok) {
-        console.error("Resposta inválida do backend:", text);
-        throw new Error("Resposta inválida");
+        console.error("Resposta inválida:", text);
+        throw new Error("Erro ao buscar OS");
       }
 
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error("Resposta não é JSON:", text);
-        throw e;
-      }
+      const data = JSON.parse(text);
 
-      // 🔒 OS concluída → visualizar
       if (data.status === "concluido") {
         router.replace(`/tecnico/servicos/${id}/visualizar`);
         return;
       }
 
-      // 🔁 ANTES já feito → depois
       if (data.antes?.fotos?.length > 0) {
         router.replace(`/tecnico/servicos/${id}/depois`);
         return;
       }
 
-      // 🔁 padrão → antes
       router.replace(`/tecnico/servicos/${id}/antes`);
     } catch (err) {
-      console.error("Erro ao carregar OS do técnico:", err);
-      alert("Sessão expirada ou erro ao carregar OS. Faça login novamente.");
-      router.replace("/login");
+      console.error("Erro técnico:", err);
+      router.replace("/tecnico");
     } finally {
       setLoading(false);
     }
   }
 
-  if (loading) {
-    return <p className="p-6">Carregando...</p>;
-  }
+  if (loading) return <p className="p-6">Carregando...</p>;
 
   return null;
 }
