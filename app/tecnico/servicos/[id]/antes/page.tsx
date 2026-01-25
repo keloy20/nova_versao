@@ -3,15 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://gerenciador-de-os.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 export default function AntesPage() {
-  const params = useParams();
-  const id = params.id as string;
+  const { id } = useParams() as { id: string };
   const router = useRouter();
 
-  const [os, setOs] = useState<any | null>(null);
+  const [os, setOs] = useState<any>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [fotos, setFotos] = useState<File[]>([]);
@@ -20,164 +18,84 @@ export default function AntesPage() {
 
   useEffect(() => {
     carregarOS();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarOS() {
-    try {
-      const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error("Erro ao buscar OS");
-      }
-
-      const data = await res.json();
-
-      // 🔒 OS CONCLUÍDA → VISUALIZAÇÃO
-      if (data.status === "concluido") {
-        router.replace(`/tecnico/servicos/${id}/visualizar`);
-        return;
-      }
-
-      // 🔁 ANTES JÁ FEITO → IR PARA DEPOIS
-      if (data.antes && data.antes.fotos && data.antes.fotos.length > 0) {
-        router.replace(`/tecnico/servicos/${id}/depois`);
-        return;
-      }
-
-      setOs(data);
-    } catch (err) {
-      alert("Erro ao carregar OS");
-    } finally {
-      setLoading(false);
+    if (data.status === "concluido") {
+      router.replace(`/tecnico/servicos/${id}/visualizar`);
+      return;
     }
+
+    if (data.antes?.fotos?.length) {
+      router.replace(`/tecnico/servicos/${id}/depois`);
+      return;
+    }
+
+    setOs(data);
+    setLoading(false);
   }
 
   function handleFotos(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.currentTarget.files;
-    if (!files) return;
-
-    setFotos((prev) => [...prev, ...Array.from(files)]);
+    if (!e.target.files) return;
+    setFotos(prev => [...prev, ...Array.from(e.target.files!)]);
   }
 
-  function removerFoto(index: number) {
-    setFotos((prev) => prev.filter((_, i) => i !== index));
+  function removerFoto(i: number) {
+    setFotos(prev => prev.filter((_, idx) => idx !== i));
   }
 
   async function salvarAntes() {
     setSalvando(true);
+    const token = localStorage.getItem("token");
+    const formData = new FormData();
 
-    try {
-      const token = localStorage.getItem("token");
-      const formData = new FormData();
+    formData.append("relatorio", relatorio);
+    formData.append("observacao", observacao);
+    fotos.forEach(f => formData.append("fotos", f));
 
-      formData.append("relatorio", relatorio);
-      formData.append("observacao", observacao);
+    await fetch(`${API_URL}/projects/tecnico/antes/${id}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
 
-      fotos.forEach((foto) => {
-        formData.append("fotos", foto);
-      });
-
-      const res = await fetch(`${API_URL}/projects/tecnico/antes/${id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        throw new Error("Erro ao salvar ANTES");
-      }
-
-      router.push(`/tecnico/servicos/${id}/depois`);
-    } catch (err) {
-      alert("Erro ao salvar ANTES");
-    } finally {
-      setSalvando(false);
-    }
+    router.push(`/tecnico/servicos/${id}/depois`);
   }
 
-  // 🔹 IMPORTANTE: não renderiza erro falso
-  if (loading) return <p className="p-6">Carregando...</p>;
+  if (loading) return <p>Carregando...</p>;
   if (!os) return null;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 text-black">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-2">
-          ANTES – {os.osNumero}
-        </h1>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">ANTES – {os.osNumero}</h1>
 
-        <p className="text-sm text-gray-600 mb-4">
-          Criado em:{" "}
-          {os.createdAt
-            ? new Date(os.createdAt).toLocaleDateString("pt-BR")
-            : "-"}
-        </p>
+      <textarea className="border p-2 w-full mb-2" placeholder="Relatório" value={relatorio} onChange={e => setRelatorio(e.target.value)} />
+      <textarea className="border p-2 w-full mb-4" placeholder="Observação" value={observacao} onChange={e => setObservacao(e.target.value)} />
 
-        <div className="mb-4">
-          <label className="block font-medium mb-1">Relatório</label>
-          <textarea
-            className="border p-2 rounded w-full min-h-[80px]"
-            value={relatorio}
-            onChange={(e) => setRelatorio(e.target.value)}
-          />
-        </div>
+      <label className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer inline-block">
+        📷 Adicionar fotos
+        <input type="file" accept="image/*" multiple hidden onChange={handleFotos} />
+      </label>
 
-        <div className="mb-4">
-          <label className="block font-medium mb-1">Observação</label>
-          <textarea
-            className="border p-2 rounded w-full min-h-[80px]"
-            value={observacao}
-            onChange={(e) => setObservacao(e.target.value)}
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
-            📷 Adicionar fotos
-            <input
-  type="file"
-  accept="image/*"
-  capture="environment"
-  multiple
-/>
-
-          </label>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
-            {fotos.map((foto, index) => (
-              <div key={index} className="relative">
-                <img
-                  src={URL.createObjectURL(foto)}
-                  className="rounded border object-cover h-28 w-full"
-                />
-                <button
-                  onClick={() => removerFoto(index)}
-                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-                >
-                  X
-                </button>
-              </div>
-            ))}
+      <div className="grid grid-cols-3 gap-2 mt-3">
+        {fotos.map((f, i) => (
+          <div key={i} className="relative">
+            <img src={URL.createObjectURL(f)} className="h-24 w-full object-cover rounded" />
+            <button onClick={() => removerFoto(i)} className="absolute top-1 right-1 bg-red-600 text-white px-2 text-xs rounded">X</button>
           </div>
-        </div>
-
-        <button
-          onClick={salvarAntes}
-          disabled={salvando}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg w-full"
-        >
-          {salvando ? "Salvando..." : "Salvar e ir para DEPOIS →"}
-        </button>
+        ))}
       </div>
+
+      <button onClick={salvarAntes} disabled={salvando} className="mt-4 bg-green-600 text-white w-full py-3 rounded">
+        {salvando ? "Salvando..." : "Salvar e ir para DEPOIS"}
+      </button>
     </div>
   );
 }
