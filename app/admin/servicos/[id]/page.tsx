@@ -97,13 +97,22 @@ export default function DetalheOSPage() {
       y += 6;
     };
 
-    linha(
-      "Cliente:",
-      os.Subcliente ? `${os.cliente} - ${os.Subcliente}` : os.cliente
-    );
-    linha("Marca:", os.marca || "-");
-    linha("Endereço:", os.endereco || "-");
-    linha("Técnico:", os.tecnico?.nome || "-");
+   linha(
+  "Cliente:",
+  os.Subcliente ? `${os.cliente} - ${os.Subcliente}` : os.cliente
+);
+
+if (os.cliente?.toLowerCase() === "dasa") {
+  linha("Marca:", os.marca || "-");
+  linha("Unidade:", os.unidade || "-");
+} else {
+  if (os.marca) linha("Marca:", os.marca);
+  if (os.unidade) linha("Unidade:", os.unidade);
+}
+
+linha("Endereço:", os.endereco || "-");
+linha("Técnico:", os.tecnico?.nome || "-");
+
 
     y += 4;
 
@@ -198,8 +207,20 @@ export default function DetalheOSPage() {
           </button>
         </div>
 
-        <p><b>Cliente:</b> {os.cliente}</p>
-        <p><b>Marca:</b> {os.marca || "-"}</p>
+      <p><b>Cliente:</b> {os.cliente}</p>
+
+{os.cliente?.toLowerCase() === "dasa" ? (
+  <>
+    <p><b>Marca:</b> {os.marca || "-"}</p>
+    <p><b>Unidade:</b> {os.unidade || "-"}</p>
+  </>
+) : (
+  <>
+    {os.marca && <p><b>Marca:</b> {os.marca}</p>}
+    {os.unidade && <p><b>Unidade:</b> {os.unidade}</p>}
+  </>
+)}
+
 
         <h3 className="mt-4 font-bold">ANTES</h3>
         <b>Relatório:</b>
