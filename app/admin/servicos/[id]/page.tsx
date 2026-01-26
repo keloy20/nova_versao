@@ -106,9 +106,14 @@ if (os.cliente?.toLowerCase() === "dasa") {
   linha("Marca:", os.marca || "-");
   linha("Unidade:", os.unidade || "-");
 } else {
-  if (os.marca) linha("Marca:", os.marca);
-  if (os.unidade) linha("Unidade:", os.unidade);
+  linha(
+    "Marca / Unidade:",
+    os.marca && os.unidade
+      ? `${os.marca} - ${os.unidade}`
+      : os.marca || os.unidade || "-"
+  );
 }
+
 
 linha("Endereço:", os.endereco || "-");
 linha("Técnico:", os.tecnico?.nome || "-");
