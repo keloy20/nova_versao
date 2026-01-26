@@ -24,12 +24,6 @@ export default function AdminPage() {
   const [periodoAtivo, setPeriodoAtivo] = useState("");
 
   useEffect(() => {
-    const role = localStorage.getItem("role");
-    if (role !== "admin") {
-      router.push("/login");
-      return;
-    }
-
     carregarServicos();
   }, []);
 
