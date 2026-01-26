@@ -107,11 +107,10 @@ if (os.cliente?.toLowerCase() === "dasa") {
   linha("Unidade:", os.unidade || "-");
 } else {
   linha(
-    "Marca / Unidade:",
-    os.marca && os.unidade
-      ? `${os.marca} - ${os.unidade}`
-      : os.marca || os.unidade || "-"
-  );
+  "Marca / Unidade:",
+  [os.marca, os.unidade].filter(Boolean).join(" - ") || "-"
+);
+
 }
 
 
