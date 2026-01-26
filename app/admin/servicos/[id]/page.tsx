@@ -29,69 +29,125 @@ export default function DetalheOSPage() {
     }
   }
 
-  /**
-   * 🚨 REGRA ABSOLUTA:
-   * - começou com "/uploads" => URL
-   * - QUALQUER outra coisa => BASE64
-   */
+  // ===== IMAGEM =====
   function resolveImageSrc(foto: any) {
     if (!foto || typeof foto !== "string") return "";
 
-    // URL salva no backend
-    if (foto.startsWith("/uploads")) {
-      return `${API_URL}${foto}`;
-    }
+    if (foto.startsWith("/uploads")) return `${API_URL}${foto}`;
+    if (foto.startsWith("data:image")) return foto;
 
-    // já é dataURL
-    if (foto.startsWith("data:image")) {
-      return foto;
-    }
-
-    // QUALQUER outro caso = base64 puro
     return `data:image/jpeg;base64,${foto}`;
   }
 
+  // ===== PDF PROFISSIONAL =====
   async function gerarPDF() {
     if (!os) return;
 
     const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF();
-    let y = 10;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
 
-    doc.setFontSize(14);
-    doc.text(`Ordem de Serviço - ${os.osNumero}`, 10, y);
+    let y = 20;
+    const margin = 15;
+
+    const dataExecucao = new Date(os.updatedAt || os.createdAt).toLocaleDateString("pt-BR");
+
+    // ===== CABEÇALHO =====
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("ORDEM DE SERVIÇO", pageWidth / 2, y, { align: "center" });
     y += 10;
 
     doc.setFontSize(10);
-    doc.text(`Cliente: ${os.cliente}`, 10, y); y += 6;
-    doc.text(`Marca: ${os.marca || "-"}`, 10, y); y += 6;
-    doc.text(`Unidade: ${os.unidade || "-"}`, 10, y); y += 6;
-    doc.text(`Endereço: ${os.endereco || "-"}`, 10, y); y += 6;
-    doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, 10, y); y += 10;
+    doc.setFont("helvetica", "normal");
+    doc.text(`OS Nº: ${os.osNumero}`, margin, y);
+    doc.text(`Data: ${dataExecucao}`, pageWidth - margin, y, { align: "right" });
+    y += 8;
 
-    doc.text("ANTES:", 10, y); y += 6;
-    doc.text(os.antes?.relatorio || "-", 10, y, { maxWidth: 180 });
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    // ===== DADOS =====
+    const linha = (label: string, value: string) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(label, margin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(value || "-", margin + 35, y);
+      y += 6;
+    };
+
+    linha("Cliente:", os.cliente);
+    linha("Marca:", os.marca);
+    linha("Unidade:", os.unidade || "-");
+    linha("Endereço:", os.endereco || "-");
+    linha("Técnico:", os.tecnico?.nome || "-");
+
     y += 6;
 
-    os.antes?.fotos?.forEach((foto: string) => {
-      const img = resolveImageSrc(foto);
-      doc.addImage(img, "JPEG", 10, y, 60, 60);
-      y += 70;
-      if (y > 260) { doc.addPage(); y = 10; }
-    });
+    // ===== FUNÇÃO TEXTO LONGO =====
+    const textoLongo = (titulo: string, texto: string) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(titulo, margin, y);
+      y += 6;
 
-    y += 6;
+      doc.setFont("helvetica", "normal");
+      const linhas = doc.splitTextToSize(texto || "-", pageWidth - margin * 2);
+      doc.text(linhas, margin, y);
+      y += linhas.length * 6 + 4;
+    };
 
-    doc.text("DEPOIS:", 10, y); y += 6;
-    doc.text(os.depois?.relatorio || "-", 10, y, { maxWidth: 180 });
-    y += 6;
+    // ===== DETALHAMENTO =====
+    textoLongo("Detalhamento do Serviço:", os.detalhamento);
 
-    os.depois?.fotos?.forEach((foto: string) => {
-      const img = resolveImageSrc(foto);
-      doc.addImage(img, "JPEG", 10, y, 60, 60);
-      y += 70;
-      if (y > 260) { doc.addPage(); y = 10; }
-    });
+    // ===== ANTES =====
+    textoLongo("Relatório - Antes:", os.antes?.relatorio);
+
+    if (os.antes?.fotos?.length) {
+      for (const foto of os.antes.fotos) {
+        if (y + 70 > pageHeight - 30) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.addImage(resolveImageSrc(foto), "JPEG", margin, y, 60, 60);
+        y += 70;
+      }
+    }
+
+    // ===== DEPOIS =====
+    textoLongo("Relatório - Depois:", os.depois?.relatorio);
+
+    if (os.depois?.fotos?.length) {
+      for (const foto of os.depois.fotos) {
+        if (y + 70 > pageHeight - 30) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.addImage(resolveImageSrc(foto), "JPEG", margin, y, 60, 60);
+        y += 70;
+      }
+    }
+
+    // ===== RODAPÉ =====
+    const totalPages = doc.getNumberOfPages();
+
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      doc.text(
+        "Documento gerado eletronicamente • Válido sem assinatura",
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: "center" }
+      );
+      doc.text(
+        `Página ${i} de ${totalPages}`,
+        pageWidth - margin,
+        pageHeight - 10,
+        { align: "right" }
+      );
+    }
 
     doc.save(`OS-${os.osNumero}.pdf`);
   }
@@ -122,23 +178,6 @@ export default function DetalheOSPage() {
 
         <p><b>Cliente:</b> {os.cliente}</p>
         <p><b>Marca:</b> {os.marca || "-"}</p>
-
-        <h3 className="mt-4 font-bold">ANTES</h3>
-        <p>{os.antes?.relatorio}</p>
-        <div className="grid grid-cols-2 gap-2">
-          {os.antes?.fotos?.map((f: string, i: number) => (
-            <img key={i} src={resolveImageSrc(f)} className="h-32 w-full object-cover border rounded" />
-          ))}
-        </div>
-
-        <h3 className="mt-4 font-bold">DEPOIS</h3>
-        <p>{os.depois?.relatorio}</p>
-        <div className="grid grid-cols-2 gap-2">
-          {os.depois?.fotos?.map((f: string, i: number) => (
-            <img key={i} src={resolveImageSrc(f)} className="h-32 w-full object-cover border rounded" />
-          ))}
-        </div>
-
       </div>
     </div>
   );
