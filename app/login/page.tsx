@@ -20,19 +20,22 @@ export default function LoginPage() {
     try {
       const data = await apiFetch("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, senha })
+        body: JSON.stringify({ email, senha }),
       });
+
+      if (!data.token) {
+        throw new Error("Token não recebido");
+      }
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
       localStorage.setItem("nome", data.nome || "");
 
       if (data.role === "admin") {
-        router.push("/admin");
+        router.replace("/admin");
       } else {
-        router.push("/tecnico");
+        router.replace("/tecnico");
       }
-
     } catch (err: any) {
       setErro(err.message || "Erro ao fazer login");
     } finally {
@@ -42,10 +45,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-6 rounded shadow-md w-full max-w-sm"
-      >
+      <form onSubmit={handleLogin} className="bg-white p-6 rounded shadow w-full max-w-sm">
         <h1 className="text-xl font-bold mb-4 text-center">Login</h1>
 
         {erro && <p className="text-red-600 mb-2">{erro}</p>}
@@ -71,7 +71,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700 transition"
+          className="bg-blue-600 text-white w-full py-2 rounded"
         >
           {loading ? "Entrando..." : "Entrar"}
         </button>
