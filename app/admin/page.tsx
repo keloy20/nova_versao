@@ -23,12 +23,12 @@ export default function AdminPage() {
   const [dataFim, setDataFim] = useState("");
   const [periodoAtivo, setPeriodoAtivo] = useState("");
 
- useEffect(() => {
+useEffect(() => {
   const role = localStorage.getItem("role");
   const token = localStorage.getItem("token");
 
   if (!token || role !== "admin") {
-    router.push("/login");
+    router.replace("/login");
     return;
   }
 
