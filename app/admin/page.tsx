@@ -36,27 +36,37 @@ export default function AdminPage() {
   }, []);
 
   async function carregarServicos() {
-    try {
-      setLoading(true);
+  setLoading(true);
 
-      const data = await apiFetch("/projects/admin/all");
+  try {
+    const data = await apiFetch("/projects/admin/all");
 
-      const ordenado = [...data].sort((a, b) => {
-        const osA = a.osNumero || "";
-        const osB = b.osNumero || "";
-        return osB.localeCompare(osA);
-      });
-
-      setServicos(ordenado);
-      setServicosFiltrados(ordenado);
-      calcularOsHoje(ordenado);
-    } catch (err: any) {
-      alert(err.message || "Erro ao carregar serviços");
-      router.replace("/login");
-    } finally {
-      setLoading(false);
+    if (!Array.isArray(data)) {
+      throw new Error("Resposta inválida do servidor");
     }
+
+    const ordenado = [...data].sort((a, b) => {
+      const osA = a.osNumero || "";
+      const osB = b.osNumero || "";
+      return osB.localeCompare(osA);
+    });
+
+    setServicos(ordenado);
+    setServicosFiltrados(ordenado);
+    calcularOsHoje(ordenado);
+
+  } catch (err: any) {
+    console.error("ADMIN LOAD ERROR:", err);
+    alert("Sessão expirada. Faça login novamente.");
+    localStorage.clear();
+    router.replace("/login");
+
+  } finally {
+    // 🔥 ISSO GARANTE QUE O LOADING ACABA
+    setLoading(false);
   }
+}
+
 
   function calcularOsHoje(lista: any[]) {
     const hoje = new Date().toISOString().split("T")[0];
