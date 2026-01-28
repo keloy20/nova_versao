@@ -1,4 +1,5 @@
 "use client";
+// layout admin ativo
 
 import { ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
