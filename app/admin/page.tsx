@@ -6,11 +6,9 @@ import { apiFetch } from "@/app/lib/api";
 
 export default function AdminPage() {
   const router = useRouter();
-
   const [servicos, setServicos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🔒 PROTEÇÃO TOTAL
   useEffect(() => {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
@@ -24,25 +22,10 @@ export default function AdminPage() {
   }, []);
 
   async function carregarServicos() {
-    setLoading(true);
-
     try {
       const data = await apiFetch("/projects/admin/all");
-
-      if (!Array.isArray(data)) {
-        throw new Error("Resposta inválida do servidor");
-      }
-
-      const ordenado = [...data].sort((a, b) => {
-        const osA = a.osNumero || "";
-        const osB = b.osNumero || "";
-        return osB.localeCompare(osA);
-      });
-
-      setServicos(ordenado);
-    } catch (err) {
-      console.error("ADMIN LOAD ERROR:", err);
-      alert("Sessão expirada. Faça login novamente.");
+      setServicos(data || []);
+    } catch {
       localStorage.clear();
       router.replace("/login");
     } finally {
@@ -52,29 +35,16 @@ export default function AdminPage() {
 
   async function cancelarServico(id: string) {
     if (!confirm("Deseja cancelar esta OS?")) return;
-
-    try {
-      await apiFetch(`/projects/admin/cancelar/${id}`, {
-        method: "PUT",
-      });
-      carregarServicos();
-    } catch (err: any) {
-      alert(err.message);
-    }
+    await apiFetch(`/projects/admin/cancelar/${id}`, { method: "PUT" });
+    carregarServicos();
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Carregando...</p>
-      </div>
-    );
+    return <p>Carregando...</p>;
   }
 
   return (
     <div className="grid gap-4">
-      {servicos.length === 0 && <p>Nenhuma OS encontrada.</p>}
-
       {servicos.map((s) => (
         <div key={s._id} className="bg-white p-4 rounded shadow">
           <b>{s.osNumero}</b>
@@ -88,7 +58,6 @@ export default function AdminPage() {
             >
               Ver
             </button>
-
             <button
               onClick={() => cancelarServico(s._id)}
               className="btn-red"
