@@ -22,11 +22,14 @@ export default function AdminServicosPage() {
 
   async function carregar() {
     try {
-      const res = await fetch("https://gerenciador-de-os.onrender.com/projects/admin/all", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
+      const res = await fetch(
+        "https://gerenciador-de-os.onrender.com/projects/admin/all",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
-      });
+      );
 
       const data = await res.json();
       setServicos(data);
@@ -34,6 +37,28 @@ export default function AdminServicosPage() {
       alert("Erro ao carregar serviços");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function excluirOS(id: string) {
+    const ok = confirm("Tem certeza que deseja EXCLUIR esta OS?");
+    if (!ok) return;
+
+    try {
+      await fetch(
+        `https://gerenciador-de-os.onrender.com/projects/admin/delete/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      // remove da lista sem recarregar a página
+      setServicos((prev) => prev.filter((s) => s._id !== id));
+    } catch (err) {
+      alert("Erro ao excluir OS");
     }
   }
 
@@ -52,14 +77,24 @@ export default function AdminServicosPage() {
             <div>
               <strong>{s.osNumero}</strong>
               <p>{s.cliente}</p>
+              <p className="text-sm text-gray-600">Status: {s.status}</p>
             </div>
 
-            <button
-              onClick={() => router.push(`/admin/servicos/${s._id}`)}
-              className="bg-gray-800 text-white px-3 py-1 rounded"
-            >
-              Ver
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => router.push(`/admin/servicos/${s._id}`)}
+                className="bg-gray-800 text-white px-3 py-1 rounded"
+              >
+                Ver
+              </button>
+
+              <button
+                onClick={() => excluirOS(s._id)}
+                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
+              >
+                Excluir
+              </button>
+            </div>
           </div>
         ))}
       </div>
