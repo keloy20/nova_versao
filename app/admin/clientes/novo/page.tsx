@@ -7,15 +7,31 @@ import { apiFetch } from "@/app/lib/api";
 export default function NovoClientePage() {
   const router = useRouter();
 
+  const [tipo, setTipo] = useState<"normal" | "dasa" | "">("");
+
   const [cliente, setCliente] = useState("");
   const [subcliente, setSubcliente] = useState("");
+  const [unidade, setUnidade] = useState("");
+  const [marca, setMarca] = useState("");
+  const [endereco, setEndereco] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
+
   const [loading, setLoading] = useState(false);
 
   async function salvarCliente() {
-    if (!cliente) {
+    if (!tipo) {
+      alert("Selecione o tipo de cliente");
+      return;
+    }
+
+    if (tipo === "normal" && !cliente) {
       alert("Cliente é obrigatório");
+      return;
+    }
+
+    if (tipo === "dasa" && (!unidade || !marca)) {
+      alert("Unidade e marca são obrigatórias para DASA");
       return;
     }
 
@@ -25,8 +41,11 @@ export default function NovoClientePage() {
       await apiFetch("/clientes", {
         method: "POST",
         body: JSON.stringify({
-          cliente,
-          subcliente,
+          cliente: tipo === "dasa" ? "DASA" : cliente,
+          subcliente: tipo === "normal" ? subcliente : "",
+          unidade: tipo === "dasa" ? unidade : "",
+          marca: tipo === "dasa" ? marca : "",
+          endereco,
           telefone,
           email,
         }),
@@ -34,7 +53,6 @@ export default function NovoClientePage() {
 
       alert("Cliente salvo com sucesso!");
       router.push("/admin/clientes");
-
     } catch (err: any) {
       alert("Erro ao salvar cliente: " + err.message);
     } finally {
@@ -48,73 +66,103 @@ export default function NovoClientePage() {
 
         {/* TOPO */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Novo Cliente</h1>
+          <h1 className="text-xl font-bold">Novo Cliente</h1>
 
           <button
             onClick={() => router.back()}
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded-lg transition"
+            className="bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded-lg"
           >
             Voltar
           </button>
         </div>
 
-        {/* CLIENTE */}
+        {/* TIPO */}
         <div className="mb-4">
-          <label className="block text-sm font-semibold text-gray-800 mb-1">
-            Cliente
+          <label className="block text-sm font-semibold mb-1">
+            Tipo de Cliente
           </label>
-          <input
-            className="w-full border border-gray-400 rounded-lg p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Ex: Brinks"
-            value={cliente}
-            onChange={(e) => setCliente(e.target.value)}
-          />
+          <select
+            className="w-full border rounded-lg p-2"
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as any)}
+          >
+            <option value="">Selecione</option>
+            <option value="normal">Cliente Normal</option>
+            <option value="dasa">DASA</option>
+          </select>
         </div>
 
-        {/* SUBCLIENTE */}
-        <div className="mb-4">
-          <label className="block text-sm font-semibold text-gray-800 mb-1">
-            Subcliente
-          </label>
-          <input
-            className="w-full border border-gray-400 rounded-lg p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Ex: Brinks Recife"
-            value={subcliente}
-            onChange={(e) => setSubcliente(e.target.value)}
-          />
-        </div>
+        {/* NORMAL */}
+        {tipo === "normal" && (
+          <>
+            <input
+              className="w-full border rounded-lg p-2 mb-3"
+              placeholder="Cliente (ex: Brinks)"
+              value={cliente}
+              onChange={(e) => setCliente(e.target.value)}
+            />
 
-        {/* TELEFONE */}
-        <div className="mb-4">
-          <label className="block text-sm font-semibold text-gray-800 mb-1">
-            Telefone
-          </label>
-          <input
-            className="w-full border border-gray-400 rounded-lg p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="(81) 99999-9999"
-            value={telefone}
-            onChange={(e) => setTelefone(e.target.value)}
-          />
-        </div>
+            <input
+              className="w-full border rounded-lg p-2 mb-3"
+              placeholder="Subcliente (ex: Brinks Recife)"
+              value={subcliente}
+              onChange={(e) => setSubcliente(e.target.value)}
+            />
+          </>
+        )}
 
-        {/* EMAIL */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-800 mb-1">
-            Email
-          </label>
-          <input
-            className="w-full border border-gray-400 rounded-lg p-2 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="cliente@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
+        {/* DASA */}
+        {tipo === "dasa" && (
+          <>
+            <input
+              className="w-full border rounded-lg p-2 mb-3 bg-gray-100"
+              value="DASA"
+              disabled
+            />
 
-        {/* BOTÃO */}
+            <input
+              className="w-full border rounded-lg p-2 mb-3"
+              placeholder="Unidade"
+              value={unidade}
+              onChange={(e) => setUnidade(e.target.value)}
+            />
+
+            <input
+              className="w-full border rounded-lg p-2 mb-3"
+              placeholder="Marca"
+              value={marca}
+              onChange={(e) => setMarca(e.target.value)}
+            />
+          </>
+        )}
+
+        {/* COMUNS */}
+        <input
+          className="w-full border rounded-lg p-2 mb-3"
+          placeholder="Endereço"
+          value={endereco}
+          onChange={(e) => setEndereco(e.target.value)}
+        />
+
+        <input
+          className="w-full border rounded-lg p-2 mb-3"
+          placeholder="Telefone"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+        />
+
+        <input
+          className="w-full border rounded-lg p-2 mb-6"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        {/* SALVAR */}
         <button
           onClick={salvarCliente}
           disabled={loading}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-60"
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg"
         >
           {loading ? "Salvando..." : "Salvar Cliente"}
         </button>
