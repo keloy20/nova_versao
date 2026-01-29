@@ -1,5 +1,4 @@
-const API_URL = "https://gerenciador-de-os.onrender.com";
-
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
   if (!API_URL) {
