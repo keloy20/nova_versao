@@ -147,13 +147,6 @@ export default function DetalheOSPage() {
               ❌ Cancelar
             </button>
 
-            {/* 🔥 NOVO BOTÃO */}
-            <button
-              onClick={excluirOS}
-              className="bg-red-800 hover:bg-red-800 text-white text-sm px-4 py-2 rounded-lg"
-            >
-              🗑️ Excluir OS
-            </button>
 
             <button
               onClick={() => router.back()}
