@@ -46,7 +46,7 @@ export default function EditarOSPage() {
       const data = await apiFetch(`/projects/admin/view/${id}`);
 
       setCliente(data.cliente || "");
-      setSubcliente(data.Subcliente || data.subgrupo || "");
+      setSubcliente(data.subcliente || "");
       setMarca(data.marca || "");
       setUnidade(data.unidade || "");
       setEndereco(data.endereco || "");
@@ -79,11 +79,15 @@ export default function EditarOSPage() {
   }
 
   function removerFotoAntes(index: number) {
-    setAntesFotos(antesFotos.filter((_, i) => i !== index));
+    const nova = [...antesFotos];
+    nova.splice(index, 1);
+    setAntesFotos(nova);
   }
 
   function removerFotoDepois(index: number) {
-    setDepoisFotos(depoisFotos.filter((_, i) => i !== index));
+    const nova = [...depoisFotos];
+    nova.splice(index, 1);
+    setDepoisFotos(nova);
   }
 
   function handleNovasFotosAntes(files: FileList | null) {
@@ -99,7 +103,10 @@ export default function EditarOSPage() {
   async function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(",")[1];
+        resolve(base64);
+      };
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
@@ -117,7 +124,7 @@ export default function EditarOSPage() {
 
       const payload = {
         cliente,
-        Subcliente: subcliente,
+        subcliente,
         marca,
         unidade,
         endereco,
@@ -151,52 +158,39 @@ export default function EditarOSPage() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center">Carregando...</div>;
+  if (loading) {
+    return <div className="p-6 text-center">Carregando...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-200 p-4 flex justify-center">
-      <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg p-6 space-y-6 text-black">
+      <div className="w-full max-w-2xl bg-white rounded-xl shadow p-6 space-y-4 text-black">
 
         <h1 className="text-2xl font-bold">Editar Ordem de Serviço</h1>
 
+        <input className="border p-2 rounded w-full" value={cliente} onChange={e => setCliente(e.target.value)} />
+        <input className="border p-2 rounded w-full" value={subcliente} onChange={e => setSubcliente(e.target.value)} />
+        <input className="border p-2 rounded w-full" value={marca} onChange={e => setMarca(e.target.value)} />
+        <input className="border p-2 rounded w-full" value={unidade} onChange={e => setUnidade(e.target.value)} />
+        <input className="border p-2 rounded w-full" value={endereco} onChange={e => setEndereco(e.target.value)} />
+        <input className="border p-2 rounded w-full" value={telefone} onChange={e => setTelefone(e.target.value)} />
+
+        <textarea className="border p-2 rounded w-full" rows={3} value={detalhamento} onChange={e => setDetalhamento(e.target.value)} />
+
         {/* ===== ANTES ===== */}
-        <div className="border rounded p-4">
-          <h2 className="font-bold mb-2">ANTES</h2>
-
-          <label>Relatório</label>
-          <textarea className="border p-2 w-full mb-2"
-            value={antesRelatorio}
-            onChange={(e) => setAntesRelatorio(e.target.value)}
-          />
-
-          <label>Observação</label>
-          <textarea className="border p-2 w-full mb-2"
-            value={antesObs}
-            onChange={(e) => setAntesObs(e.target.value)}
-          />
-        </div>
+        <h2 className="font-bold mt-4">ANTES</h2>
+        <textarea className="border p-2 rounded w-full" rows={2} value={antesRelatorio} onChange={e => setAntesRelatorio(e.target.value)} />
+        <textarea className="border p-2 rounded w-full" rows={2} placeholder="Observação (Antes)" value={antesObs} onChange={e => setAntesObs(e.target.value)} />
 
         {/* ===== DEPOIS ===== */}
-        <div className="border rounded p-4">
-          <h2 className="font-bold mb-2">DEPOIS</h2>
-
-          <label>Relatório</label>
-          <textarea className="border p-2 w-full mb-2"
-            value={depoisRelatorio}
-            onChange={(e) => setDepoisRelatorio(e.target.value)}
-          />
-
-          <label>Observação</label>
-          <textarea className="border p-2 w-full"
-            value={depoisObs}
-            onChange={(e) => setDepoisObs(e.target.value)}
-          />
-        </div>
+        <h2 className="font-bold mt-4">DEPOIS</h2>
+        <textarea className="border p-2 rounded w-full" rows={2} value={depoisRelatorio} onChange={e => setDepoisRelatorio(e.target.value)} />
+        <textarea className="border p-2 rounded w-full" rows={2} placeholder="Observação (Depois)" value={depoisObs} onChange={e => setDepoisObs(e.target.value)} />
 
         <button
           onClick={salvarAlteracoes}
           disabled={salvando}
-          className="bg-green-600 text-white py-3 rounded w-full text-lg"
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded w-full font-bold"
         >
           {salvando ? "Salvando..." : "Salvar Alterações"}
         </button>
