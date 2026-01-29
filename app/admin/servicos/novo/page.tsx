@@ -41,49 +41,6 @@ const DASA_LISTA = [
   { unidade: "RENASCENÇA", marca: "GASPAR" },
   { unidade: "ANJO DA GUARDA", marca: "GASPAR" },
   { unidade: "CALHAU", marca: "GASPAR" },
-  { unidade: "ITAJARA", marca: "IMAGE MEMORIAL" },
-  { unidade: "Campo Grande", marca: "IMAGE MEMORIAL" },
-  { unidade: "LE-SÃO MARCOS", marca: "LEME" },
-  { unidade: "CANELA", marca: "LEME" },
-  { unidade: "GARIBALDI", marca: "LEME" },
-  { unidade: "PATAMARES", marca: "LEME" },
-  { unidade: "CABULA", marca: "LEME" },
-  { unidade: "IMBUI", marca: "LEME" },
-  { unidade: "NTO-ADM", marca: "LEME" },
-  { unidade: "ITAIGARA", marca: "LEME" },
-  { unidade: "VILA DO ATLANTICO", marca: "LEME" },
-  { unidade: "MEMORIAL", marca: "IMAGE" },
-  { unidade: "DERBY", marca: "CERPE" },
-  { unidade: "CAXANGA", marca: "CERPE" },
-  { unidade: "MADALENA - PRIME", marca: "CERPE - PRAIME" },
-  { unidade: "BEBERIBE", marca: "CERPE" },
-  { unidade: "Graças", marca: "CERPE" },
-  { unidade: "GRAVATÁ", marca: "CERPE" },
-  { unidade: "Igarassu", marca: "CERPE" },
-  { unidade: "CE NTH RECIFE", marca: "CERPE" },
-  { unidade: "Jaboatão", marca: "CERPE" },
-  { unidade: "Janga", marca: "CERPE" },
-  { unidade: "NTH - ADM", marca: "CERPE" },
-  { unidade: "PRAZERES", marca: "CERPE" },
-  { unidade: "Setubal II", marca: "CERPE" },
-  { unidade: "IMBIRIBEIRA", marca: "NTO - Recife" },
-  { unidade: "Jardim São Paulo", marca: "CERPE" },
-  { unidade: "HOLANDESES", marca: "GASPAR" },
-  { unidade: "JP Gaspar", marca: "GASPAR" },
-  { unidade: "LEME", marca: "IMAGE" },
-  { unidade: "ARMAZEM", marca: "LABPASTEUR" },
-  { unidade: "Itapoã", marca: "LEME" },
-  { unidade: "SÃO MARCOS", marca: "LEME" },
-  { unidade: "ONDINA", marca: "NTO - Recife" },
-  { unidade: "STELLA MARIS", marca: "LEME" },
-  { unidade: "CABO DE SANTO AGOSTINHO", marca: "BORIS BERENSTEIN" },
-  { unidade: "JAQUEIRA", marca: "CERPE" },
-  { unidade: "CARPINA", marca: "CERPE" },
-  { unidade: "CAMINHO DE AREIA", marca: "LEME" },
-  { unidade: "COSTA AZUL", marca: "LEME" },
-  { unidade: "CAMINHO DAS ARVORES", marca: "LEME" },
-  { unidade: "JARDINS", marca: "GASPAR" },
-  { unidade: "JARDINS PRIME", marca: "GASPAR" },
 ];
 
 export default function NovaOSPage() {
@@ -141,6 +98,28 @@ export default function NovaOSPage() {
     setBuscaDasa("");
   }
 
+  // 🔥 ENVIO AUTOMÁTICO DE WHATSAPP
+  function enviarWhatsAppNovaOS(os: any) {
+    if (!os?.tecnico?.telefone) return;
+
+    const telefone = os.tecnico.telefone.replace(/\D/g, "");
+
+    const mensagem = `
+📢 NOVA ORDEM DE SERVIÇO
+
+OS Nº: ${os.osNumero}
+
+Cliente: ${os.cliente}
+Endereço: ${os.endereco}
+
+Detalhes:
+${os.detalhamento}
+    `;
+
+    const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, "_blank");
+  }
+
   async function salvarOS() {
     if (!cliente || !tecnicoId) {
       alert("Cliente e técnico são obrigatórios");
@@ -150,7 +129,7 @@ export default function NovaOSPage() {
     setLoading(true);
 
     try {
-      await apiFetch("/projects/admin/create", {
+      const osCriada = await apiFetch("/projects/admin/create", {
         method: "POST",
         body: JSON.stringify({
           cliente,
@@ -164,8 +143,12 @@ export default function NovaOSPage() {
         }),
       });
 
-      alert("OS criada com sucesso!");
+      // ✅ WHATSAPP AUTOMÁTICO
+      enviarWhatsAppNovaOS(osCriada);
+
+      alert(`OS ${osCriada.osNumero} criada com sucesso!`);
       router.push("/admin");
+
     } catch (err: any) {
       alert("Erro: " + err.message);
     } finally {
@@ -187,7 +170,6 @@ export default function NovaOSPage() {
           </button>
         </div>
 
-        {/* CLIENTE */}
         <input
           className="border p-2 rounded w-full mb-3"
           placeholder="Cliente (ex: DASA ou Brinks)"
@@ -210,7 +192,6 @@ export default function NovaOSPage() {
           }}
         />
 
-        {/* SUBCLIENTE (para clientes normais como Brinks) */}
         {subclientes.length > 0 && !isDASA && (
           <select
             className="border p-2 rounded w-full mb-3"
@@ -226,11 +207,8 @@ export default function NovaOSPage() {
           </select>
         )}
 
-        {/* LISTA DASA */}
         {isDASA && mostrarListaDasa && (
           <div className="border rounded p-3 mb-4 bg-gray-50">
-            <p className="font-semibold mb-2">Selecionar Unidade / Marca (DASA)</p>
-
             <input
               className="border p-2 rounded w-full mb-3"
               placeholder="Buscar unidade ou marca..."
@@ -248,78 +226,30 @@ export default function NovaOSPage() {
                   <b>{item.unidade}</b> — {item.marca}
                 </div>
               ))}
-
-              {listaFiltrada.length === 0 && (
-                <p className="text-sm text-gray-500">Nenhum resultado encontrado</p>
-              )}
             </div>
           </div>
         )}
 
-        {/* UNIDADE */}
         {isDASA && (
-          <input
-            className="border p-2 rounded w-full mb-3 bg-gray-100"
-            placeholder="Unidade"
-            value={unidade}
-            readOnly
-          />
+          <>
+            <input className="border p-2 rounded w-full mb-3 bg-gray-100" value={unidade} readOnly />
+            <input className="border p-2 rounded w-full mb-3 bg-gray-100" value={marca} readOnly />
+          </>
         )}
 
-        {/* MARCA */}
-        {isDASA && (
-          <input
-            className="border p-2 rounded w-full mb-3 bg-gray-100"
-            placeholder="Marca"
-            value={marca}
-            readOnly
-          />
-        )}
+        <input className="border p-2 rounded w-full mb-3" placeholder="Endereço" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+        <input className="border p-2 rounded w-full mb-3" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
 
-        {/* ENDEREÇO */}
-        <input
-          className="border p-2 rounded w-full mb-3"
-          placeholder="Endereço"
-          value={endereco}
-          onChange={(e) => setEndereco(e.target.value)}
-        />
+        <textarea className="border p-2 rounded w-full mb-4" rows={4} placeholder="Detalhamento do serviço" value={detalhamento} onChange={(e) => setDetalhamento(e.target.value)} />
 
-        {/* TELEFONE */}
-        <input
-          className="border p-2 rounded w-full mb-3"
-          placeholder="Telefone"
-          value={telefone}
-          onChange={(e) => setTelefone(e.target.value)}
-        />
-
-        {/* DETALHAMENTO */}
-        <textarea
-          className="border p-2 rounded w-full mb-4"
-          rows={4}
-          placeholder="Detalhamento do serviço"
-          value={detalhamento}
-          onChange={(e) => setDetalhamento(e.target.value)}
-        />
-
-        {/* TÉCNICO */}
-        <select
-          className="border p-2 rounded w-full mb-6"
-          value={tecnicoId}
-          onChange={(e) => setTecnicoId(e.target.value)}
-        >
+        <select className="border p-2 rounded w-full mb-6" value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value)}>
           <option value="">Selecione o técnico</option>
           {tecnicos.map((t) => (
-            <option key={t._id} value={t._id}>
-              {t.nome}
-            </option>
+            <option key={t._id} value={t._id}>{t.nome}</option>
           ))}
         </select>
 
-        <button
-          onClick={salvarOS}
-          disabled={loading}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg w-full"
-        >
+        <button onClick={salvarOS} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg w-full">
           {loading ? "Salvando..." : "Salvar OS"}
         </button>
 
