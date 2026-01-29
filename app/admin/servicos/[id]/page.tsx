@@ -112,10 +112,7 @@ export default function DetalheOSPage() {
     
     <div className="min-h-screen bg-gray-100 p-4 flex justify-center">
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6">
-        <div className="bg-red-600 text-white p-2 text-center font-bold">
-  TESTE – SE VOCÊ ESTÁ VENDO ISSO, ESTE É O ARQUIVO CERTO
-</div>
-
+        
         {/* TOPO */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Detalhes da OS</h1>
