@@ -84,148 +84,114 @@ ${os.detalhamento}
     const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
     window.open(url, "_blank");
   }
-async function gerarPDF() {
+function gerarPDF() {
   if (!os) return;
 
   const doc = new jsPDF("p", "mm", "a4");
-
-  const pageHeight = 297;
+  const pageWidth = 210;
   const margin = 15;
-  const contentWidth = 180;
-  let y = 20;
+  let y = 15;
 
-  const ensureSpace = (needed: number) => {
-    if (y + needed > pageHeight - margin) {
-      doc.addPage();
-      y = 20;
-    }
+  const addTitulo = (txt: string) => {
+    doc.setFontSize(11);
+   doc.setFont("helvetica", "bold");
+    doc.text(txt, margin, y);
+    y += 6;
+   doc.setFont("helvetica", "normal");
+
   };
 
-  // ======================
-  // CABEÇALHO
-  // ======================
+  const addTexto = (txt: string) => {
+    doc.setFontSize(10);
+    const linhas = doc.splitTextToSize(txt || "-", pageWidth - margin * 2);
+    doc.text(linhas, margin, y);
+    y += linhas.length * 5 + 2;
+  };
+
+  /* ===============================
+     CABEÇALHO
+  =============================== */
   doc.setFontSize(16);
-  doc.text("ORDEM DE SERVIÇO", 105, y, { align: "center" });
+  doc.text("ORDEM DE SERVIÇO", pageWidth / 2, y, { align: "center" });
   y += 10;
 
   doc.setFontSize(10);
   doc.text(`OS: ${os.osNumero}`, margin, y);
-  doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 195, y, {
-    align: "right",
-  });
+  doc.text(`Data: ${new Date().toLocaleDateString()}`, pageWidth - margin, y, { align: "right" });
   y += 6;
 
   doc.text(`Status: ${os.status}`, margin, y); y += 5;
   doc.text(`Cliente: ${os.cliente}`, margin, y); y += 5;
-
-  if (os.marca || os.unidade) {
-    doc.text(`Marca: ${os.marca || "-"}`, margin, y); y += 5;
-    doc.text(`Unidade: ${os.unidade || "-"}`, margin, y); y += 5;
-  }
-
+  doc.text(`Marca: ${os.marca || "-"}`, margin, y); y += 5;
+  doc.text(`Unidade: ${os.unidade || "-"}`, margin, y); y += 5;
   doc.text(`Endereço: ${os.endereco || "-"}`, margin, y); y += 5;
-  doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, margin, y); y += 10;
+  doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, margin, y); y += 8;
 
-  // ======================
-  // DETALHAMENTO
-  // ======================
-  doc.setFontSize(12);
-  doc.text("DETALHAMENTO DO SERVIÇO", margin, y);
-  y += 6;
+  /* ===============================
+     DETALHAMENTO
+  =============================== */
+  addTitulo("DETALHAMENTO DO SERVIÇO");
+  addTexto(os.detalhamento);
 
-  doc.setFontSize(10);
-  doc.text(os.detalhamento || "-", margin, y, { maxWidth: contentWidth });
-  y += 12;
+  /* ===============================
+     ANTES
+  =============================== */
+  addTitulo("RELATÓRIO – ANTES");
+  addTexto(os.antes?.relatorio);
 
-  // ======================
-  // FUNÇÃO RELATÓRIO
-  // ======================
-  const renderRelatorio = (titulo: string, dados: any) => {
-    if (!dados) return;
+  addTitulo("OBSERVAÇÃO – ANTES");
+  addTexto(os.antes?.observacao);
 
-    ensureSpace(40);
+  addTitulo("FOTOS – ANTES");
 
-    doc.setFontSize(12);
-    doc.text(titulo, margin, y);
-    y += 6;
+  const fotosAntes = os.antes?.fotos || [];
+  let xImg = margin;
+  let yImg = y;
+  const imgW = 85;
+  const imgH = 60;
 
-    doc.setFontSize(10);
-    doc.text("Relatório:", margin, y);
-    y += 5;
-    doc.text(dados.relatorio || "-", margin, y, {
-      maxWidth: contentWidth,
-    });
-    y += 10;
+  fotosAntes.slice(0, 4).forEach((foto: string, index: number) => {
+    doc.addImage(`data:image/jpeg;base64,${foto}`, "JPEG", xImg, yImg, imgW, imgH);
 
-    doc.text("Observação:", margin, y);
-    y += 5;
-    doc.text(dados.observacao || "-", margin, y, {
-      maxWidth: contentWidth,
-    });
-    y += 10;
-  };
-
-  // ======================
-  // FUNÇÃO FOTOS 2x2
-  // ======================
-  const renderFotos = async (titulo: string, fotos: string[]) => {
-    if (!fotos || fotos.length === 0) return;
-
-    ensureSpace(80);
-
-    doc.setFontSize(12);
-    doc.text(titulo, margin, y);
-    y += 8;
-
-    const imgW = 80;
-    const imgH = 55;
-    const gap = 10;
-
-    let x = margin;
-    let col = 0;
-
-    for (const foto of fotos.slice(0, 4)) {
-      ensureSpace(imgH + 10);
-
-      await new Promise<void>((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          doc.addImage(
-            `data:image/jpeg;base64,${foto}`,
-            "JPEG",
-            x,
-            y,
-            imgW,
-            imgH
-          );
-
-          col++;
-          if (col % 2 === 0) {
-            x = margin;
-            y += imgH + gap;
-          } else {
-            x += imgW + gap;
-          }
-          resolve();
-        };
-        img.src = `data:image/jpeg;base64,${foto}`;
-      });
+    if (index % 2 === 0) {
+      xImg += imgW + 5;
+    } else {
+      xImg = margin;
+      yImg += imgH + 5;
     }
+  });
 
-    y += 10;
-  };
+  /* ===============================
+     NOVA PÁGINA
+  =============================== */
+  doc.addPage();
+  y = 15;
 
-  // ======================
-  // ANTES
-  // ======================
-  renderRelatorio("RELATÓRIO - ANTES", os.antes);
-  await renderFotos("FOTOS - ANTES", os.antes?.fotos || []);
+  /* ===============================
+     DEPOIS
+  =============================== */
+  addTitulo("RELATÓRIO – DEPOIS");
+  addTexto(os.depois?.relatorio);
 
-  // ======================
-  // DEPOIS
-  // ======================
-  renderRelatorio("RELATÓRIO - DEPOIS", os.depois);
-  await renderFotos("FOTOS - DEPOIS", os.depois?.fotos || []);
+  addTitulo("OBSERVAÇÃO – DEPOIS");
+  addTexto(os.depois?.observacao);
+
+  addTitulo("FOTOS – DEPOIS");
+
+  const fotosDepois = os.depois?.fotos || [];
+  xImg = margin;
+  yImg = y;
+
+  fotosDepois.slice(0, 4).forEach((foto: string, index: number) => {
+    doc.addImage(`data:image/jpeg;base64,${foto}`, "JPEG", xImg, yImg, imgW, imgH);
+
+    if (index % 2 === 0) {
+      xImg += imgW + 5;
+    } else {
+      xImg = margin;
+      yImg += imgH + 5;
+    }
+  });
 
   doc.save(`OS-${os.osNumero}.pdf`);
 }
