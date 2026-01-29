@@ -24,13 +24,15 @@ export default function EditarOSPage() {
   const [tecnicos, setTecnicos] = useState<any[]>([]);
   const [tecnicoId, setTecnicoId] = useState("");
 
-  const [antesRelatorio, setAntesRelatorio] = useState("");
-  const [antesFotos, setAntesFotos] = useState<string[]>([]);
-  const [novasFotosAntes, setNovasFotosAntes] = useState<File[]>([]);
+ const [antesRelatorio, setAntesRelatorio] = useState("");
+const [antesObs, setAntesObs] = useState(""); // 👈 ADD
+const [antesFotos, setAntesFotos] = useState<string[]>([]);
+const [novasFotosAntes, setNovasFotosAntes] = useState<File[]>([]);
 
-  const [depoisRelatorio, setDepoisRelatorio] = useState("");
-  const [depoisFotos, setDepoisFotos] = useState<string[]>([]);
-  const [novasFotosDepois, setNovasFotosDepois] = useState<File[]>([]);
+const [depoisRelatorio, setDepoisRelatorio] = useState("");
+const [depoisObs, setDepoisObs] = useState(""); // 👈 ADD
+const [depoisFotos, setDepoisFotos] = useState<string[]>([]);
+const [novasFotosDepois, setNovasFotosDepois] = useState<File[]>([]);
 
   useEffect(() => {
     carregarOS();
@@ -51,11 +53,14 @@ export default function EditarOSPage() {
       setStatus(data.status || "aguardando_tecnico");
       setTecnicoId(data.tecnico?._id || data.tecnico || "");
 
-      setAntesRelatorio(data.antes?.relatorio || "");
-      setAntesFotos(data.antes?.fotos || []);
+    setAntesRelatorio(data.antes?.relatorio || "");
+setAntesObs(data.antes?.observacao || ""); // ✅ ADD
+setAntesFotos(data.antes?.fotos || []);
 
-      setDepoisRelatorio(data.depois?.relatorio || "");
-      setDepoisFotos(data.depois?.fotos || []);
+setDepoisRelatorio(data.depois?.relatorio || "");
+setDepoisObs(data.depois?.observacao || ""); // ✅ ADD
+setDepoisFotos(data.depois?.fotos || []);
+
     } catch (err: any) {
       alert("Erro ao carregar OS: " + err.message);
     } finally {
