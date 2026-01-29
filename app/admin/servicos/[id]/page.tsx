@@ -38,81 +38,55 @@ export default function DetalheOSPage() {
       });
 
       alert("OS cancelada com sucesso!");
-      await carregarOS(); // 🔥 atualiza na hora
-
+      await carregarOS();
     } catch (err: any) {
       alert("Erro ao cancelar: " + err.message);
     }
   }
 
+  // 🔥 NOVO — EXCLUIR OS
+  async function excluirOS() {
+    const ok = confirm(
+      "⚠️ ATENÇÃO!\n\nEssa ação NÃO pode ser desfeita.\nDeseja excluir esta OS definitivamente?"
+    );
+    if (!ok) return;
+
+    try {
+      await apiFetch(`/projects/admin/delete/${id}`, {
+        method: "DELETE",
+      });
+
+      alert("OS excluída com sucesso!");
+      router.push("/admin");
+    } catch (err: any) {
+      alert("Erro ao excluir OS: " + err.message);
+    }
+  }
+
   function gerarPDF() {
-  if (!os) return;
+    if (!os) return;
 
-  const doc = new jsPDF();
-  let y = 10;
+    const doc = new jsPDF();
+    let y = 10;
 
-  doc.setFontSize(14);
-  doc.text(`Ordem de Serviço - ${os.osNumero || ""}`, 10, y);
-  y += 10;
+    doc.setFontSize(14);
+    doc.text(`Ordem de Serviço - ${os.osNumero || ""}`, 10, y);
+    y += 10;
 
-  doc.setFontSize(10);
-  doc.text(`Status: ${os.status}`, 10, y); y += 6;
-  doc.text(`Cliente: ${os.cliente}`, 10, y); y += 6;
-  doc.text(`Marca: ${os.marca || "-"}`, 10, y); y += 6;
-  doc.text(`Unidade: ${os.unidade || "-"}`, 10, y); y += 6;
-  doc.text(`Endereço: ${os.endereco || "-"}`, 10, y); y += 6;
-  doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, 10, y); y += 10;
+    doc.setFontSize(10);
+    doc.text(`Status: ${os.status}`, 10, y); y += 6;
+    doc.text(`Cliente: ${os.cliente}`, 10, y); y += 6;
+    doc.text(`Marca: ${os.marca || "-"}`, 10, y); y += 6;
+    doc.text(`Unidade: ${os.unidade || "-"}`, 10, y); y += 6;
+    doc.text(`Endereço: ${os.endereco || "-"}`, 10, y); y += 6;
+    doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, 10, y); y += 10;
 
-  doc.text("Detalhamento do Serviço:", 10, y); 
-  y += 6;
-  doc.text(os.detalhamento || "-", 10, y, { maxWidth: 180 });
-  y += 10;
+    doc.text("Detalhamento do Serviço:", 10, y);
+    y += 6;
+    doc.text(os.detalhamento || "-", 10, y, { maxWidth: 180 });
 
-  // ===== ANTES =====
-  doc.text("ANTES:", 10, y); 
-  y += 6;
-
-  doc.text(os.antes?.relatorio || "-", 10, y, { maxWidth: 180 });
-  y += 6;
-
-  if (os.antes?.fotos && os.antes.fotos.length > 0) {
-    for (const foto of os.antes.fotos) {
-      const imgData = `data:${foto.tipo};base64,${foto.base64}`;
-      doc.addImage(imgData, "JPEG", 10, y, 50, 50);
-      y += 55;
-
-      if (y > 250) {
-        doc.addPage();
-        y = 10;
-      }
-    }
+    doc.save(`OS-${os.osNumero || id}.pdf`);
   }
-
-  y += 10;
-
-  // ===== DEPOIS =====
-  doc.text("DEPOIS:", 10, y); 
-  y += 6;
-
-  doc.text(os.depois?.relatorio || "-", 10, y, { maxWidth: 180 });
-  y += 6;
-
-  if (os.depois?.fotos && os.depois.fotos.length > 0) {
-    for (const foto of os.depois.fotos) {
-      const imgData = `data:${foto.tipo};base64,${foto.base64}`;
-      doc.addImage(imgData, "JPEG", 10, y, 50, 50);
-      y += 55;
-
-      if (y > 250) {
-        doc.addPage();
-        y = 10;
-      }
-    }
-  }
-
-  doc.save(`OS-${os.osNumero || id}.pdf`);
-}
-
 
   if (loading) {
     return <div className="p-6 text-center text-gray-700">Carregando...</div>;
@@ -142,44 +116,49 @@ export default function DetalheOSPage() {
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={gerarPDF}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg"
             >
               Gerar PDF
             </button>
 
             <button
               onClick={() => router.push(`/admin/servicos/${id}/editar`)}
-              className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg transition"
+              className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg"
             >
               ✏️ Alterar
             </button>
 
             <button
               onClick={cancelarOS}
-              className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-lg transition"
+              className="bg-yellow-600 hover:bg-yellow-700 text-white text-sm px-4 py-2 rounded-lg"
             >
               ❌ Cancelar
             </button>
 
+            {/* 🔥 NOVO BOTÃO */}
+            <button
+              onClick={excluirOS}
+              className="bg-red-700 hover:bg-red-800 text-white text-sm px-4 py-2 rounded-lg"
+            >
+              🗑️ Excluir OS
+            </button>
+
             <button
               onClick={() => router.back()}
-              className="bg-gray-300 hover:bg-gray-400 text-gray-800 text-sm px-4 py-2 rounded-lg transition"
+              className="bg-gray-300 hover:bg-gray-400 text-gray-800 text-sm px-4 py-2 rounded-lg"
             >
               Voltar
             </button>
           </div>
         </div>
 
-        {/* BLOCO DADOS */}
+        {/* DADOS */}
         <div className="space-y-4 text-sm text-gray-900">
-
-          {/* OS */}
           <div>
             <p className="text-xs text-gray-600 font-semibold">NÚMERO DA OS</p>
             <p className="font-bold text-base">{os.osNumero || "-"}</p>
           </div>
 
-          {/* STATUS */}
           <div>
             <p className="text-xs text-gray-600 font-semibold">STATUS</p>
             <span className={`inline-block px-3 py-1 rounded-full text-sm border ${statusColor}`}>
@@ -187,96 +166,22 @@ export default function DetalheOSPage() {
             </span>
           </div>
 
-          {/* CLIENTE */}
           <div>
             <p className="text-xs text-gray-600 font-semibold">CLIENTE</p>
             <p className="font-bold">{os.cliente}</p>
           </div>
 
-          {/* SUBCLIENTE */}
-          {(os.Subcliente || os.subgrupo) && (
-            <div>
-              <p className="text-xs text-gray-600 font-semibold">SUBCLIENTE</p>
-              <p className="font-bold">{os.Subcliente || os.subgrupo}</p>
-            </div>
-          )}
-
-          {/* MARCA */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">MARCA</p>
-            <p className="font-bold">{os.marca || "-"}</p>
-          </div>
-
-          {/* UNIDADE */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">UNIDADE</p>
-            <p className="font-bold">{os.unidade || "-"}</p>
-          </div>
-
-          {/* ENDEREÇO */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">ENDEREÇO</p>
-            <p className="font-bold">{os.endereco || "-"}</p>
-          </div>
-
-          {/* TELEFONE */}
-          <div>
-            <p className="text-xs text-gray-600 font-semibold">TELEFONE</p>
-            <p className="font-bold">{os.telefone || "-"}</p>
-          </div>
-
-          {/* TÉCNICO */}
           <div>
             <p className="text-xs text-gray-600 font-semibold">TÉCNICO</p>
             <p className="font-bold">{os.tecnico?.nome || "-"}</p>
           </div>
 
-          {/* DETALHAMENTO */}
           <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-            <p className="text-xs text-blue-700 font-semibold mb-1">DETALHAMENTO DO SERVIÇO</p>
-            <p className="text-gray-900 whitespace-pre-line">{os.detalhamento || "-"}</p>
-          </div>
-
-          {/* ANTES */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-300">
-            <p className="text-xs text-gray-700 font-semibold mb-1">ANTES</p>
-            <p className="text-gray-900 mb-2 whitespace-pre-line">
-              {os.antes?.relatorio || "-"}
+            <p className="text-xs text-blue-700 font-semibold mb-1">
+              DETALHAMENTO DO SERVIÇO
             </p>
+            <p className="whitespace-pre-line">{os.detalhamento || "-"}</p>
           </div>
-          {os.antes?.fotos && os.antes.fotos.length > 0 && (
-  <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
-    {os.antes.fotos.map((foto: any, index: number) => (
-      <img
-        key={index}
-        src={`data:${foto.tipo};base64,${foto.base64}`}
-        className="w-full h-32 object-cover rounded border"
-      />
-    ))}
-  </div>
-)}
-
-
-          {/* DEPOIS */}
-          <div className="bg-green-50 p-3 rounded-lg border border-green-300">
-            <p className="text-xs text-green-700 font-semibold mb-1">DEPOIS</p>
-            <p className="text-gray-900 mb-2 whitespace-pre-line">
-              {os.depois?.relatorio || "-"}
-            </p>
-          </div>
-          {os.depois?.fotos && os.depois.fotos.length > 0 && (
-  <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
-    {os.depois.fotos.map((foto: any, index: number) => (
-      <img
-        key={index}
-        src={`data:${foto.tipo};base64,${foto.base64}`}
-        className="w-full h-32 object-cover rounded border"
-      />
-    ))}
-  </div>
-)}
-
-
         </div>
       </div>
     </div>
