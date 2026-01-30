@@ -12,9 +12,11 @@ export default function DetalheOSPage() {
 
   const [os, setOs] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     carregarOS();
+    setUserRole(localStorage.getItem("role"));
   }, []);
 
   async function carregarOS() {
@@ -71,139 +73,146 @@ export default function DetalheOSPage() {
     const telefone = os.tecnico.telefone.replace(/\D/g, "");
 
     const mensagem = `
-Olá ${os.tecnico.nome},
-Você foi designado para a OS ${os.osNumero}.
-
-Cliente: ${os.cliente}
-Endereço: ${os.endereco}
-
-Serviço:
-${os.detalhamento}
+    Uma nova OS foi atribuída ao sistema Sertch.
+Favor verificar!
     `;
 
-    const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+    const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(
+      mensagem
+    )}`;
     window.open(url, "_blank");
   }
-function gerarPDF() {
-  if (!os) return;
 
-  const doc = new jsPDF("p", "mm", "a4");
-  const pageWidth = 210;
-  const margin = 15;
-  let y = 15;
+  function gerarPDF() {
+    if (!os) return;
 
-  const addTitulo = (txt: string) => {
-    doc.setFontSize(11);
-   doc.setFont("helvetica", "bold");
-    doc.text(txt, margin, y);
-    y += 6;
-   doc.setFont("helvetica", "normal");
+    const doc = new jsPDF("p", "mm", "a4");
+    const pageWidth = 210;
+    const margin = 15;
+    let y = 15;
 
-  };
+    const addTitulo = (txt: string) => {
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(txt, margin, y);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+    };
 
-  const addTexto = (txt: string) => {
+    const addTexto = (txt: string) => {
+      doc.setFontSize(10);
+      const linhas = doc.splitTextToSize(
+        txt || "-",
+        pageWidth - margin * 2
+      );
+      doc.text(linhas, margin, y);
+      y += linhas.length * 5 + 2;
+    };
+
+    doc.setFontSize(16);
+    doc.text("ORDEM DE SERVIÇO", pageWidth / 2, y, { align: "center" });
+    y += 10;
+
     doc.setFontSize(10);
-    const linhas = doc.splitTextToSize(txt || "-", pageWidth - margin * 2);
-    doc.text(linhas, margin, y);
-    y += linhas.length * 5 + 2;
-  };
+    doc.text(`OS: ${os.osNumero}`, margin, y);
+    doc.text(
+      `Data: ${new Date().toLocaleDateString()}`,
+      pageWidth - margin,
+      y,
+      { align: "right" }
+    );
+    y += 6;
 
-  /* ===============================
-     CABEÇALHO
-  =============================== */
-  doc.setFontSize(16);
-  doc.text("ORDEM DE SERVIÇO", pageWidth / 2, y, { align: "center" });
-  y += 10;
+    doc.text(`Status: ${os.status}`, margin, y); y += 5;
+    doc.text(`Cliente: ${os.cliente}`, margin, y); y += 5;
+    doc.text(`Marca: ${os.marca || "-"}`, margin, y); y += 5;
+    doc.text(`Unidade: ${os.unidade || "-"}`, margin, y); y += 5;
+    doc.text(`Endereço: ${os.endereco || "-"}`, margin, y); y += 5;
+    doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, margin, y); y += 8;
 
-  doc.setFontSize(10);
-  doc.text(`OS: ${os.osNumero}`, margin, y);
-  doc.text(`Data: ${new Date().toLocaleDateString()}`, pageWidth - margin, y, { align: "right" });
-  y += 6;
+    addTitulo("DETALHAMENTO DO SERVIÇO");
+    addTexto(os.detalhamento);
 
-  doc.text(`Status: ${os.status}`, margin, y); y += 5;
-  doc.text(`Cliente: ${os.cliente}`, margin, y); y += 5;
-  doc.text(`Marca: ${os.marca || "-"}`, margin, y); y += 5;
-  doc.text(`Unidade: ${os.unidade || "-"}`, margin, y); y += 5;
-  doc.text(`Endereço: ${os.endereco || "-"}`, margin, y); y += 5;
-  doc.text(`Técnico: ${os.tecnico?.nome || "-"}`, margin, y); y += 8;
+    addTitulo("RELATÓRIO – ANTES");
+    addTexto(os.antes?.relatorio);
 
-  /* ===============================
-     DETALHAMENTO
-  =============================== */
-  addTitulo("DETALHAMENTO DO SERVIÇO");
-  addTexto(os.detalhamento);
+    addTitulo("OBSERVAÇÃO – ANTES");
+    addTexto(os.antes?.observacao);
 
-  /* ===============================
-     ANTES
-  =============================== */
-  addTitulo("RELATÓRIO – ANTES");
-  addTexto(os.antes?.relatorio);
+    addTitulo("FOTOS – ANTES");
 
-  addTitulo("OBSERVAÇÃO – ANTES");
-  addTexto(os.antes?.observacao);
+    const fotosAntes = os.antes?.fotos || [];
+    let xImg = margin;
+    let yImg = y;
+    const imgW = 85;
+    const imgH = 60;
 
-  addTitulo("FOTOS – ANTES");
+    fotosAntes.slice(0, 4).forEach((foto: string, index: number) => {
+      doc.addImage(
+        `data:image/jpeg;base64,${foto}`,
+        "JPEG",
+        xImg,
+        yImg,
+        imgW,
+        imgH
+      );
 
-  const fotosAntes = os.antes?.fotos || [];
-  let xImg = margin;
-  let yImg = y;
-  const imgW = 85;
-  const imgH = 60;
+      if (index % 2 === 0) {
+        xImg += imgW + 5;
+      } else {
+        xImg = margin;
+        yImg += imgH + 5;
+      }
+    });
 
-  fotosAntes.slice(0, 4).forEach((foto: string, index: number) => {
-    doc.addImage(`data:image/jpeg;base64,${foto}`, "JPEG", xImg, yImg, imgW, imgH);
+    doc.addPage();
+    y = 15;
 
-    if (index % 2 === 0) {
-      xImg += imgW + 5;
-    } else {
-      xImg = margin;
-      yImg += imgH + 5;
-    }
-  });
+    addTitulo("RELATÓRIO – DEPOIS");
+    addTexto(os.depois?.relatorio);
 
-  /* ===============================
-     NOVA PÁGINA
-  =============================== */
-  doc.addPage();
-  y = 15;
+    addTitulo("OBSERVAÇÃO – DEPOIS");
+    addTexto(os.depois?.observacao);
 
-  /* ===============================
-     DEPOIS
-  =============================== */
-  addTitulo("RELATÓRIO – DEPOIS");
-  addTexto(os.depois?.relatorio);
+    addTitulo("FOTOS – DEPOIS");
 
-  addTitulo("OBSERVAÇÃO – DEPOIS");
-  addTexto(os.depois?.observacao);
+    const fotosDepois = os.depois?.fotos || [];
+    xImg = margin;
+    yImg = y;
 
-  addTitulo("FOTOS – DEPOIS");
+    fotosDepois.slice(0, 4).forEach((foto: string, index: number) => {
+      doc.addImage(
+        `data:image/jpeg;base64,${foto}`,
+        "JPEG",
+        xImg,
+        yImg,
+        imgW,
+        imgH
+      );
 
-  const fotosDepois = os.depois?.fotos || [];
-  xImg = margin;
-  yImg = y;
+      if (index % 2 === 0) {
+        xImg += imgW + 5;
+      } else {
+        xImg = margin;
+        yImg += imgH + 5;
+      }
+    });
 
-  fotosDepois.slice(0, 4).forEach((foto: string, index: number) => {
-    doc.addImage(`data:image/jpeg;base64,${foto}`, "JPEG", xImg, yImg, imgW, imgH);
-
-    if (index % 2 === 0) {
-      xImg += imgW + 5;
-    } else {
-      xImg = margin;
-      yImg += imgH + 5;
-    }
-  });
-
-  doc.save(`OS-${os.osNumero}.pdf`);
-}
-
-
+    doc.save(`OS-${os.osNumero}.pdf`);
+  }
 
   if (loading) {
-    return <div className="p-6 text-center text-gray-700">Carregando...</div>;
+    return (
+      <div className="p-6 text-center text-gray-700">Carregando...</div>
+    );
   }
 
   if (!os) {
-    return <div className="p-6 text-center text-red-600">OS não encontrada</div>;
+    return (
+      <div className="p-6 text-center text-red-600">
+        OS não encontrada
+      </div>
+    );
   }
 
   const statusColor =
@@ -219,13 +228,12 @@ function gerarPDF() {
     <div className="min-h-screen bg-gray-100 p-4 flex justify-center">
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6">
 
-        {/* TOPO */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Detalhes da OS</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Detalhes da OS
+          </h1>
 
           <div className="flex gap-2 flex-wrap">
-           
-
             <button
               onClick={gerarPDF}
               className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg"
@@ -233,26 +241,32 @@ function gerarPDF() {
               Gerar PDF
             </button>
 
-            <button
-              onClick={() => router.push(`/admin/servicos/${id}/editar`)}
-              className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg"
-            >
-              ✏️ Alterar
-            </button>
+            {userRole === "admin" && (
+              <>
+                <button
+                  onClick={() =>
+                    router.push(`/admin/servicos/${id}/editar`)
+                  }
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg"
+                >
+                  ✏️ Alterar
+                </button>
 
-            <button
-              onClick={cancelarOS}
-              className="bg-yellow-600 hover:bg-yellow-700 text-white text-sm px-4 py-2 rounded-lg"
-            >
-              ❌ Cancelar
-            </button>
+                <button
+                  onClick={cancelarOS}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white text-sm px-4 py-2 rounded-lg"
+                >
+                  ❌ Cancelar
+                </button>
 
-            <button
-              onClick={excluirOS}
-              className="bg-red-700 hover:bg-red-800 text-white text-sm px-4 py-2 rounded-lg"
-            >
-              🗑️ Excluir OS
-            </button>
+                <button
+                  onClick={excluirOS}
+                  className="bg-red-700 hover:bg-red-800 text-white text-sm px-4 py-2 rounded-lg"
+                >
+                  🗑️ Excluir OS
+                </button>
+              </>
+            )}
 
             <button
               onClick={() => router.back()}
@@ -263,16 +277,21 @@ function gerarPDF() {
           </div>
         </div>
 
-        {/* DADOS */}
         <div className="space-y-4 text-sm text-gray-900">
           <div>
-            <p className="text-xs text-gray-600 font-semibold">NÚMERO DA OS</p>
-            <p className="font-bold text-base">{os.osNumero || "-"}</p>
+            <p className="text-xs text-gray-600 font-semibold">
+              NÚMERO DA OS
+            </p>
+            <p className="font-bold text-base">
+              {os.osNumero || "-"}
+            </p>
           </div>
 
           <div>
             <p className="text-xs text-gray-600 font-semibold">STATUS</p>
-            <span className={`inline-block px-3 py-1 rounded-full text-sm border ${statusColor}`}>
+            <span
+              className={`inline-block px-3 py-1 rounded-full text-sm border ${statusColor}`}
+            >
               {os.status}
             </span>
           </div>
@@ -291,7 +310,9 @@ function gerarPDF() {
             <p className="text-xs text-blue-700 font-semibold mb-1">
               DETALHAMENTO DO SERVIÇO
             </p>
-            <p className="whitespace-pre-line">{os.detalhamento || "-"}</p>
+            <p className="whitespace-pre-line">
+              {os.detalhamento || "-"}
+            </p>
           </div>
         </div>
       </div>
