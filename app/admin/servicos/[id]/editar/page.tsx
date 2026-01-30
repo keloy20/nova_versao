@@ -53,7 +53,7 @@ export default function EditarOSPage() {
       setTelefone(data.telefone || "");
       setDetalhamento(data.detalhamento || "");
       setStatus(data.status || "aguardando_tecnico");
-      setTecnicoId(data.tecnico?._id || data.tecnico || "");
+      setTecnicoId(data.tecnico?._id || "");
 
       setAntesRelatorio(data.antes?.relatorio || "");
       setAntesObs(data.antes?.observacao || "");
@@ -76,18 +76,6 @@ export default function EditarOSPage() {
     } catch {
       alert("Erro ao carregar técnicos");
     }
-  }
-
-  function removerFotoAntes(index: number) {
-    const nova = [...antesFotos];
-    nova.splice(index, 1);
-    setAntesFotos(nova);
-  }
-
-  function removerFotoDepois(index: number) {
-    const nova = [...depoisFotos];
-    nova.splice(index, 1);
-    setDepoisFotos(nova);
   }
 
   function handleNovasFotosAntes(files: FileList | null) {
@@ -131,7 +119,7 @@ export default function EditarOSPage() {
         telefone,
         detalhamento,
         status,
-        tecnicoId,
+        tecnicoId, // 🔥 TROCA DE TÉCNICO FUNCIONANDO
         antes: {
           relatorio: antesRelatorio,
           observacao: antesObs,
@@ -158,9 +146,7 @@ export default function EditarOSPage() {
     }
   }
 
-  if (loading) {
-    return <div className="p-6 text-center">Carregando...</div>;
-  }
+  if (loading) return <div className="p-6 text-center">Carregando...</div>;
 
   return (
     <div className="min-h-screen bg-gray-200 p-4 flex justify-center">
@@ -177,15 +163,29 @@ export default function EditarOSPage() {
 
         <textarea className="border p-2 rounded w-full" rows={3} value={detalhamento} onChange={e => setDetalhamento(e.target.value)} />
 
+        {/* 🔁 TROCAR TÉCNICO */}
+        <select
+          className="border p-2 rounded w-full"
+          value={tecnicoId}
+          onChange={e => setTecnicoId(e.target.value)}
+        >
+          <option value="">Selecione o técnico</option>
+          {tecnicos.map(t => (
+            <option key={t._id} value={t._id}>
+              {t.nome}
+            </option>
+          ))}
+        </select>
+
         {/* ===== ANTES ===== */}
         <h2 className="font-bold mt-4">ANTES</h2>
         <textarea className="border p-2 rounded w-full" rows={2} value={antesRelatorio} onChange={e => setAntesRelatorio(e.target.value)} />
-        <textarea className="border p-2 rounded w-full" rows={2} placeholder="Observação (Antes)" value={antesObs} onChange={e => setAntesObs(e.target.value)} />
+        <textarea className="border p-2 rounded w-full" rows={2} value={antesObs} onChange={e => setAntesObs(e.target.value)} />
 
         {/* ===== DEPOIS ===== */}
         <h2 className="font-bold mt-4">DEPOIS</h2>
         <textarea className="border p-2 rounded w-full" rows={2} value={depoisRelatorio} onChange={e => setDepoisRelatorio(e.target.value)} />
-        <textarea className="border p-2 rounded w-full" rows={2} placeholder="Observação (Depois)" value={depoisObs} onChange={e => setDepoisObs(e.target.value)} />
+        <textarea className="border p-2 rounded w-full" rows={2} value={depoisObs} onChange={e => setDepoisObs(e.target.value)} />
 
         <button
           onClick={salvarAlteracoes}

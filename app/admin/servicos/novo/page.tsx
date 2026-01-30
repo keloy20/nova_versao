@@ -90,7 +90,7 @@ const telefoneLimpo = tecnicoSelecionado.telefone.replace(/\D/g, "");
 const mensagem = `
 Uma nova OS foi atribuída ao sistema Sertch.
 Favor verificar!
-}
+
 `;
 
 
