@@ -7,7 +7,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://gerenciador-de-os.onrender.com";
 
-export default function ServicoDepoisPage() {
+export default function DepoisPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -21,7 +21,6 @@ export default function ServicoDepoisPage() {
 
   useEffect(() => {
     carregarOS();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarOS() {
@@ -36,9 +35,8 @@ export default function ServicoDepoisPage() {
 
       const data = await res.json();
 
-      // 🔒 REGRA FINAL:
-      // DEPOIS SÓ ABRE SE CONCLUÍDO
-      if (data.status !== "concluido") {
+      // 🔒 SÓ BLOQUEIA SE AINDA NÃO COMEÇOU
+      if (data.status === "aguardando_tecnico") {
         router.replace(`/tecnico/servicos/${id}/antes`);
         return;
       }
@@ -98,27 +96,50 @@ export default function ServicoDepoisPage() {
           DEPOIS – {os.osNumero}
         </h1>
 
-        <label className="font-medium mb-1 block">Relatório final</label>
+        <label className="font-medium block mb-1">Relatório final</label>
         <textarea
           className="border p-2 rounded w-full mb-4"
           value={relatorio}
           onChange={(e) => setRelatorio(e.target.value)}
         />
 
-        <label className="font-medium mb-1 block">Observações finais</label>
+        <label className="font-medium block mb-1">Observações finais</label>
         <textarea
           className="border p-2 rounded w-full mb-4"
           value={observacao}
           onChange={(e) => setObservacao(e.target.value)}
         />
 
-        <label className="font-medium mb-2 block">📷 Fotos</label>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFotosChange}
-        />
+        <label className="font-medium block mb-2">📷 Fotos</label>
+        <label className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
+          📷 Escolher fotos
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={handleFotosChange}
+          />
+        </label>
+
+        {fotos.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+            {fotos.map((f, i) => (
+              <div key={i} className="relative">
+                <img
+                  src={URL.createObjectURL(f)}
+                  className="h-32 w-full object-cover rounded"
+                />
+                <button
+                  onClick={() => removerFoto(i)}
+                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
+                >
+                  X
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <button
           onClick={salvarDepois}
