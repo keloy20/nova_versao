@@ -36,11 +36,9 @@ export default function ServicoDepoisPage() {
 
       const data = await res.json();
 
-      // ✅ REGRA CORRETA DO FLUXO
-      // - aguardando_tecnico → vai pro ANTES
-      // - em_andamento → pode ficar no DEPOIS
-      // - concluido → pode ficar no DEPOIS
-      if (data.status === "aguardando_tecnico") {
+      // 🔒 REGRA FINAL:
+      // DEPOIS SÓ ABRE SE CONCLUÍDO
+      if (data.status !== "concluido") {
         router.replace(`/tecnico/servicos/${id}/antes`);
         return;
       }
@@ -90,13 +88,8 @@ export default function ServicoDepoisPage() {
     }
   }
 
-  if (loading) {
-    return <div className="p-6">Carregando...</div>;
-  }
-
-  if (!os) {
-    return <div className="p-6">OS não encontrada</div>;
-  }
+  if (loading) return <div className="p-6">Carregando...</div>;
+  if (!os) return <div className="p-6">OS não encontrada</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-black">
@@ -120,35 +113,12 @@ export default function ServicoDepoisPage() {
         />
 
         <label className="font-medium mb-2 block">📷 Fotos</label>
-        <label className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
-          📷 Escolher fotos
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={handleFotosChange}
-          />
-        </label>
-
-        {fotos.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
-            {fotos.map((f, i) => (
-              <div key={i} className="relative">
-                <img
-                  src={URL.createObjectURL(f)}
-                  className="h-32 w-full object-cover rounded"
-                />
-                <button
-                  onClick={() => removerFoto(i)}
-                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-                >
-                  X
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFotosChange}
+        />
 
         <button
           onClick={salvarDepois}
