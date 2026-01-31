@@ -7,17 +7,13 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://gerenciador-de-os.onrender.com";
 
-export default function DepoisPage() {
+export default function ServicoPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
   const [os, setOs] = useState<any>(null);
-  const [relatorio, setRelatorio] = useState("");
-  const [observacao, setObservacao] = useState("");
-  const [fotos, setFotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
-  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     carregarOS();
@@ -34,55 +30,11 @@ export default function DepoisPage() {
       if (!res.ok) throw new Error();
 
       const data = await res.json();
-
-      // 🔒 SÓ BLOQUEIA SE AINDA NÃO COMEÇOU
-      if (data.status === "aguardando_tecnico") {
-        router.replace(`/tecnico/servicos/${id}/antes`);
-        return;
-      }
-
       setOs(data);
     } catch {
       setOs(null);
     } finally {
       setLoading(false);
-    }
-  }
-
-  function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files) return;
-    setFotos(Array.from(e.target.files));
-  }
-
-  function removerFoto(index: number) {
-    setFotos((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  async function salvarDepois() {
-    setSalvando(true);
-
-    try {
-      const token = localStorage.getItem("token");
-      const formData = new FormData();
-
-      formData.append("relatorio", relatorio);
-      formData.append("observacao", observacao);
-      fotos.forEach((f) => formData.append("fotos", f));
-
-      const res = await fetch(`${API_URL}/projects/tecnico/depois/${id}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error();
-
-      alert("OS finalizada com sucesso!");
-      router.push("/tecnico");
-    } catch {
-      alert("Erro ao salvar DEPOIS");
-    } finally {
-      setSalvando(false);
     }
   }
 
@@ -92,62 +44,33 @@ export default function DepoisPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-6">
-          DEPOIS – {os.osNumero}
+        <h1 className="text-2xl font-bold mb-4">
+          OS {os.osNumero}
         </h1>
 
-        <label className="font-medium block mb-1">Relatório final</label>
-        <textarea
-          className="border p-2 rounded w-full mb-4"
-          value={relatorio}
-          onChange={(e) => setRelatorio(e.target.value)}
-        />
+        <p className="mb-6">
+          Status atual: <b>{os.status}</b>
+        </p>
 
-        <label className="font-medium block mb-1">Observações finais</label>
-        <textarea
-          className="border p-2 rounded w-full mb-4"
-          value={observacao}
-          onChange={(e) => setObservacao(e.target.value)}
-        />
+        <div className="flex flex-col gap-4">
+          <button
+            onClick={() =>
+              router.push(`/tecnico/servicos/${id}/antes`)
+            }
+            className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded"
+          >
+            Ir para ANTES
+          </button>
 
-        <label className="font-medium block mb-2">📷 Fotos</label>
-        <label className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
-          📷 Escolher fotos
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={handleFotosChange}
-          />
-        </label>
-
-        {fotos.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
-            {fotos.map((f, i) => (
-              <div key={i} className="relative">
-                <img
-                  src={URL.createObjectURL(f)}
-                  className="h-32 w-full object-cover rounded"
-                />
-                <button
-                  onClick={() => removerFoto(i)}
-                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-                >
-                  X
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <button
-          onClick={salvarDepois}
-          disabled={salvando}
-          className="mt-6 bg-green-600 hover:bg-green-700 text-white w-full py-3 rounded"
-        >
-          {salvando ? "Salvando..." : "Finalizar OS"}
-        </button>
+          <button
+            onClick={() =>
+              router.push(`/tecnico/servicos/${id}/depois`)
+            }
+            className="bg-green-600 hover:bg-green-700 text-white py-3 rounded"
+          >
+            Ir para DEPOIS
+          </button>
+        </div>
       </div>
     </div>
   );

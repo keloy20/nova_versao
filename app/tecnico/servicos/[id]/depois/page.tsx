@@ -3,77 +3,149 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-const API_URL = "https://gerenciador-de-os.onrender.com";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://gerenciador-de-os.onrender.com";
 
 export default function DepoisPage() {
-  const { id } = useParams();
+  const params = useParams();
   const router = useRouter();
+  const id = params.id as string;
 
   const [os, setOs] = useState<any>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [fotos, setFotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    carregar();
+    carregarOS();
   }, []);
 
-  async function carregar() {
-    const token = localStorage.getItem("token");
+  async function carregarOS() {
+    try {
+      const token = localStorage.getItem("token");
 
-    const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    const data = await res.json();
+      if (!res.ok) throw new Error();
 
-    // 🚫 NUNCA ENTRA NO DEPOIS SE NÃO CONCLUIU
-    if (data.status !== "concluido") {
-      router.replace(`/tecnico/servicos/${id}/antes`);
-      return;
+      const data = await res.json();
+
+      // 🚫 SÓ ENTRA NO DEPOIS SE O ANTES JÁ FOI FEITO
+      if (data.status !== "em_andamento") {
+        router.replace(`/tecnico/servicos/${id}/antes`);
+        return;
+      }
+
+      setOs(data);
+    } catch {
+      setOs(null);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    setOs(data);
-    setLoading(false);
+  function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files) return;
+    setFotos(Array.from(e.target.files));
+  }
+
+  function removerFoto(index: number) {
+    setFotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function salvarDepois() {
-    const token = localStorage.getItem("token");
-    const form = new FormData();
+    setSalvando(true);
 
-    form.append("relatorio", relatorio);
-    form.append("observacao", observacao);
-    fotos.forEach(f => form.append("fotos", f));
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
 
-    await fetch(`${API_URL}/projects/tecnico/depois/${id}`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
+      formData.append("relatorio", relatorio);
+      formData.append("observacao", observacao);
+      fotos.forEach((f) => formData.append("fotos", f));
 
-    router.push("/tecnico");
+      await fetch(`${API_URL}/projects/tecnico/depois/${id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      alert("OS finalizada com sucesso!");
+      router.push("/tecnico");
+    } catch {
+      alert("Erro ao salvar DEPOIS");
+    } finally {
+      setSalvando(false);
+    }
   }
 
-  if (loading) return <p>Carregando...</p>;
-  if (!os) return <p>OS não encontrada</p>;
+  if (loading) return <div className="p-6">Carregando...</div>;
+  if (!os) return <div className="p-6">OS não encontrada</div>;
 
   return (
-    <div className="p-6 bg-white">
-      <h1 className="text-xl font-bold mb-4">DEPOIS – {os.osNumero}</h1>
+    <div className="min-h-screen bg-gray-50 p-6 text-black">
+      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
+        <h1 className="text-2xl font-bold mb-6">
+          DEPOIS – {os.osNumero}
+        </h1>
 
-      <label>Relatório final</label>
-      <textarea className="border w-full mb-3" value={relatorio} onChange={e => setRelatorio(e.target.value)} />
+        <label className="font-medium block mb-1">Relatório final</label>
+        <textarea
+          className="border p-2 rounded w-full mb-4"
+          value={relatorio}
+          onChange={(e) => setRelatorio(e.target.value)}
+        />
 
-      <label>Observações finais</label>
-      <textarea className="border w-full mb-3" value={observacao} onChange={e => setObservacao(e.target.value)} />
+        <label className="font-medium block mb-1">Observações finais</label>
+        <textarea
+          className="border p-2 rounded w-full mb-4"
+          value={observacao}
+          onChange={(e) => setObservacao(e.target.value)}
+        />
 
-      <label>📷 Fotos</label>
-      <input type="file" accept="image/*" multiple onChange={e => setFotos(Array.from(e.target.files || []))} />
+        <label className="flex items-center gap-2 cursor-pointer bg-gray-100 p-3 rounded">
+          📷 <span>Adicione suas fotos</span>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={handleFotosChange}
+          />
+        </label>
 
-      <button className="mt-4 bg-green-600 text-white p-3 w-full" onClick={salvarDepois}>
-        Finalizar OS
-      </button>
+        {fotos.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+            {fotos.map((f, i) => (
+              <div key={i} className="relative">
+                <img
+                  src={URL.createObjectURL(f)}
+                  className="h-32 w-full object-cover rounded"
+                />
+                <button
+                  onClick={() => removerFoto(i)}
+                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
+                >
+                  X
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          onClick={salvarDepois}
+          disabled={salvando}
+          className="mt-6 bg-green-600 hover:bg-green-700 text-white w-full py-3 rounded"
+        >
+          {salvando ? "Salvando..." : "Finalizar OS"}
+        </button>
+      </div>
     </div>
   );
 }
