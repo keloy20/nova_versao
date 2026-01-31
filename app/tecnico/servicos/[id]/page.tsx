@@ -28,18 +28,11 @@ export default function DepoisPage() {
       const token = localStorage.getItem("token");
 
       const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error("Erro ao buscar OS");
-      }
-
-      // 🔒 REGRA FINAL ABSOLUTA
       if (data.status !== "concluido") {
         router.replace(`/tecnico/servicos/${id}/antes`);
         return;
@@ -63,23 +56,19 @@ export default function DepoisPage() {
 
     try {
       const token = localStorage.getItem("token");
-
       const formData = new FormData();
+
       formData.append("relatorio", relatorio);
       formData.append("observacao", observacao);
       fotos.forEach((f) => formData.append("fotos", f));
 
       const res = await fetch(`${API_URL}/projects/tecnico/depois/${id}`, {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
-      if (!res.ok) {
-        throw new Error();
-      }
+      if (!res.ok) throw new Error();
 
       alert("OS finalizada!");
       router.push("/tecnico");
@@ -96,35 +85,50 @@ export default function DepoisPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-4">
+        <h1 className="text-2xl font-bold mb-6">
           DEPOIS – {os.osNumero}
         </h1>
 
+        <label className="font-medium mb-1 block">Relatório final</label>
         <textarea
-          className="border p-2 rounded w-full mb-3"
-          placeholder="Relatório final"
+          className="border p-2 rounded w-full mb-4"
           value={relatorio}
           onChange={(e) => setRelatorio(e.target.value)}
         />
 
+        <label className="font-medium mb-1 block">Observações finais</label>
         <textarea
-          className="border p-2 rounded w-full mb-3"
-          placeholder="Observação final"
+          className="border p-2 rounded w-full mb-4"
           value={observacao}
           onChange={(e) => setObservacao(e.target.value)}
         />
 
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={handleFotosChange}
-        />
+        <label className="font-medium mb-2 block">📷 Fotos</label>
+        <label className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
+          📷 Escolher fotos
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={handleFotosChange}
+          />
+        </label>
+
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          {fotos.map((f, i) => (
+            <img
+              key={i}
+              src={URL.createObjectURL(f)}
+              className="h-32 w-full object-cover rounded"
+            />
+          ))}
+        </div>
 
         <button
           onClick={salvarDepois}
           disabled={salvando}
-          className="mt-4 bg-green-600 text-white w-full py-3 rounded"
+          className="mt-6 bg-green-600 hover:bg-green-700 text-white w-full py-3 rounded"
         >
           {salvando ? "Salvando..." : "Finalizar OS"}
         </button>

@@ -28,25 +28,18 @@ export default function AntesPage() {
       const token = localStorage.getItem("token");
 
       const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error("Erro ao carregar OS");
-      }
-
-      // 🔒 REGRA FINAL
       if (data.status === "concluido") {
         router.replace(`/tecnico/servicos/${id}/depois`);
         return;
       }
 
       setOs(data);
-    } catch (err: any) {
+    } catch {
       alert("Erro ao carregar OS");
     } finally {
       setLoading(false);
@@ -58,37 +51,25 @@ export default function AntesPage() {
     setFotos(Array.from(e.target.files));
   }
 
-  function removerFoto(index: number) {
-    setFotos((prev) => prev.filter((_, i) => i !== index));
-  }
-
   async function salvarAntes() {
     setSalvando(true);
 
     try {
       const token = localStorage.getItem("token");
-
       const formData = new FormData();
+
       formData.append("relatorio", relatorio);
       formData.append("observacao", observacao);
-
-      fotos.forEach((foto) => {
-        formData.append("fotos", foto);
-      });
+      fotos.forEach((f) => formData.append("fotos", f));
 
       const res = await fetch(`${API_URL}/projects/tecnico/antes/${id}`, {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
-      if (!res.ok) {
-        throw new Error("Erro ao salvar ANTES");
-      }
+      if (!res.ok) throw new Error();
 
-      // 👉 só aqui vai para depois
       router.push(`/tecnico/servicos/${id}/depois`);
     } catch {
       alert("Erro ao salvar ANTES");
@@ -103,52 +84,50 @@ export default function AntesPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-4">
+        <h1 className="text-2xl font-bold mb-6">
           ANTES – {os.osNumero}
         </h1>
 
+        <label className="font-medium mb-1 block">Relatório inicial</label>
         <textarea
-          className="border p-2 rounded w-full mb-3"
-          placeholder="Relatório"
+          className="border p-2 rounded w-full mb-4"
           value={relatorio}
           onChange={(e) => setRelatorio(e.target.value)}
         />
 
+        <label className="font-medium mb-1 block">Observações</label>
         <textarea
-          className="border p-2 rounded w-full mb-3"
-          placeholder="Observação"
+          className="border p-2 rounded w-full mb-4"
           value={observacao}
           onChange={(e) => setObservacao(e.target.value)}
         />
 
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={handleFotosChange}
-        />
+        <label className="font-medium mb-2 block">📷 Fotos</label>
+        <label className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
+          📷 Escolher fotos
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={handleFotosChange}
+          />
+        </label>
 
-        <div className="grid grid-cols-2 gap-2 mt-3">
+        <div className="grid grid-cols-2 gap-3 mt-3">
           {fotos.map((f, i) => (
-            <div key={i} className="relative">
-              <img
-                src={URL.createObjectURL(f)}
-                className="h-32 w-full object-cover rounded"
-              />
-              <button
-                onClick={() => removerFoto(i)}
-                className="absolute top-1 right-1 bg-red-600 text-white px-2 rounded"
-              >
-                X
-              </button>
-            </div>
+            <img
+              key={i}
+              src={URL.createObjectURL(f)}
+              className="h-32 w-full object-cover rounded"
+            />
           ))}
         </div>
 
         <button
           onClick={salvarAntes}
           disabled={salvando}
-          className="mt-4 bg-green-600 text-white w-full py-3 rounded"
+          className="mt-6 bg-green-600 hover:bg-green-700 text-white w-full py-3 rounded"
         >
           {salvando ? "Salvando..." : "Salvar e ir para DEPOIS"}
         </button>
