@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -23,6 +22,7 @@ export default function NovaOSPage() {
   const [tecnicoId, setTecnicoId] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [loadingTecnicos, setLoadingTecnicos] = useState(true);
 
   const isDASA = cliente.trim().toLowerCase() === "dasa";
 
@@ -31,13 +31,31 @@ export default function NovaOSPage() {
   }, []);
 
   async function carregarTecnicos() {
-    const data = await apiFetch("/auth/tecnicos");
-    setTecnicos(data);
+    try {
+      setLoadingTecnicos(true);
+      const data = await apiFetch("/auth/tecnicos");
+
+      if (Array.isArray(data)) {
+        setTecnicos(data);
+      } else {
+        setTecnicos([]);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar técnicos", err);
+      alert("Erro ao carregar técnicos. Verifique se está logado como admin.");
+      setTecnicos([]);
+    } finally {
+      setLoadingTecnicos(false);
+    }
   }
 
   async function carregarClientes(nomeCliente: string) {
-    const data = await apiFetch(`/clientes/by-cliente/${nomeCliente}`);
-    setClientesDB(data);
+    try {
+      const data = await apiFetch(`/clientes/by-cliente/${nomeCliente}`);
+      setClientesDB(data);
+    } catch {
+      setClientesDB([]);
+    }
   }
 
   function selecionarClienteDB(c: any) {
@@ -49,77 +67,46 @@ export default function NovaOSPage() {
     setUnidade(c.unidade || "");
 
     setClientesDB([]);
-    setMostrarLista(false); // 🔥 FECHA A LISTA
+    setMostrarLista(false);
   }
 
- async function salvarOS() {
-  if (!cliente || !tecnicoId) {
-    alert("Cliente e técnico são obrigatórios");
-    return;
-  }
+  async function salvarOS() {
+    if (!cliente || !tecnicoId) {
+      alert("Cliente e técnico são obrigatórios");
+      return;
+    }
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const osCriada = await apiFetch("/projects/admin/create", {
-      method: "POST",
-      body: JSON.stringify({
-        cliente,
-        subcliente: isDASA ? "" : subcliente,
-        endereco,
-        telefone,
-        marca: isDASA ? marca : "",
-        unidade: isDASA ? unidade : "",
-        detalhamento,
-        tecnicoId,
-      }),
-    });
+    try {
+      await apiFetch("/projects/admin/create", {
+        method: "POST",
+        body: JSON.stringify({
+          cliente,
+          subcliente: isDASA ? "" : subcliente,
+          endereco,
+          telefone,
+          marca: isDASA ? marca : "",
+          unidade: isDASA ? unidade : "",
+          detalhamento,
+          tecnicoId,
+        }),
+      });
 
-  const tecnicoSelecionado = tecnicos.find(t => t._id === tecnicoId);
-
-if (!tecnicoSelecionado || !tecnicoSelecionado.telefone) {
-  alert("Técnico sem telefone cadastrado");
-  return;
-}
-
-const telefoneLimpo = tecnicoSelecionado.telefone.replace(/\D/g, "");
-
-    
-
-    // 🔥 MENSAGEM WHATSAPP
-const mensagem = `
-Uma nova OS foi atribuída ao sistema Sertch.
-Favor verificar!
-
-`;
-
-
-    // 🔥 URL WHATSAPP (APP NO CELULAR)
-    const urlWhats = `whatsapp://send?phone=55${telefoneLimpo}&text=${encodeURIComponent(mensagem)}`;
-
-    // 🔥 ABRE O WHATSAPP
-    window.location.href = urlWhats;
-
-    // ⏱️ pequeno delay antes de voltar
-    setTimeout(() => {
+      alert("OS criada com sucesso!");
       router.push("/admin");
-    }, 500);
-
-  } catch (err) {
-    alert("Erro ao salvar OS");
-  } finally {
-    setLoading(false);
+    } catch (err) {
+      alert("Erro ao salvar OS");
+    } finally {
+      setLoading(false);
+    }
   }
-}
-
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-
         <h1 className="text-2xl font-bold mb-6">Nova Ordem de Serviço</h1>
 
-        {/* CLIENTE */}
         <input
           className="border p-2 rounded w-full mb-2"
           placeholder="Cliente (ex: DASA ou Brinks)"
@@ -144,7 +131,6 @@ Favor verificar!
           }}
         />
 
-        {/* LISTA CLIENTES */}
         {mostrarLista && clientesDB.length > 0 && (
           <div className="border rounded mb-4 bg-white max-h-60 overflow-y-auto">
             {clientesDB.map((c) => (
@@ -161,7 +147,6 @@ Favor verificar!
           </div>
         )}
 
-        {/* SUBCLIENTE NORMAL */}
         {!isDASA && (
           <input
             className="border p-2 rounded w-full mb-3"
@@ -171,25 +156,13 @@ Favor verificar!
           />
         )}
 
-        {/* DASA */}
         {isDASA && (
           <>
-            <input
-              className="border p-2 rounded w-full mb-3 bg-gray-100"
-              placeholder="Unidade"
-              value={unidade}
-              readOnly
-            />
-            <input
-              className="border p-2 rounded w-full mb-3 bg-gray-100"
-              placeholder="Marca"
-              value={marca}
-              readOnly
-            />
+            <input className="border p-2 rounded w-full mb-3 bg-gray-100" value={unidade} readOnly />
+            <input className="border p-2 rounded w-full mb-3 bg-gray-100" value={marca} readOnly />
           </>
         )}
 
-        {/* ENDEREÇO */}
         <input
           className="border p-2 rounded w-full mb-3"
           placeholder="Endereço"
@@ -197,7 +170,6 @@ Favor verificar!
           onChange={(e) => setEndereco(e.target.value)}
         />
 
-        {/* TELEFONE */}
         <input
           className="border p-2 rounded w-full mb-3"
           placeholder="Telefone"
@@ -205,7 +177,6 @@ Favor verificar!
           onChange={(e) => setTelefone(e.target.value)}
         />
 
-        {/* DETALHAMENTO */}
         <textarea
           className="border p-2 rounded w-full mb-4"
           rows={4}
@@ -214,15 +185,19 @@ Favor verificar!
           onChange={(e) => setDetalhamento(e.target.value)}
         />
 
-        {/* TÉCNICO */}
         <select
           className="border p-2 rounded w-full mb-6"
           value={tecnicoId}
           onChange={(e) => setTecnicoId(e.target.value)}
+          disabled={loadingTecnicos}
         >
-          <option value="">Selecione o técnico</option>
+          <option value="">
+            {loadingTecnicos ? "Carregando técnicos..." : "Selecione o técnico"}
+          </option>
           {tecnicos.map((t) => (
-            <option key={t._id} value={t._id}>{t.nome}</option>
+            <option key={t._id} value={t._id}>
+              {t.nome}
+            </option>
           ))}
         </select>
 
@@ -233,7 +208,6 @@ Favor verificar!
         >
           {loading ? "Salvando..." : "Salvar OS"}
         </button>
-
       </div>
     </div>
   );
