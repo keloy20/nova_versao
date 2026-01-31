@@ -33,6 +33,9 @@ export default function DepoisPage() {
 
       const data = await res.json();
 
+      if (!res.ok) throw new Error();
+
+      // 🔒 SÓ ENTRA NO DEPOIS SE CONCLUÍDO
       if (data.status !== "concluido") {
         router.replace(`/tecnico/servicos/${id}/antes`);
         return;
@@ -49,6 +52,10 @@ export default function DepoisPage() {
   function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
     setFotos(Array.from(e.target.files));
+  }
+
+  function removerFoto(index: number) {
+    setFotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function salvarDepois() {
@@ -70,7 +77,7 @@ export default function DepoisPage() {
 
       if (!res.ok) throw new Error();
 
-      alert("OS finalizada!");
+      alert("OS finalizada com sucesso!");
       router.push("/tecnico");
     } catch {
       alert("Erro ao salvar DEPOIS");
@@ -104,7 +111,7 @@ export default function DepoisPage() {
         />
 
         <label className="font-medium mb-2 block">📷 Fotos</label>
-        <label className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
+        <label className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
           📷 Escolher fotos
           <input
             type="file"
@@ -115,15 +122,24 @@ export default function DepoisPage() {
           />
         </label>
 
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          {fotos.map((f, i) => (
-            <img
-              key={i}
-              src={URL.createObjectURL(f)}
-              className="h-32 w-full object-cover rounded"
-            />
-          ))}
-        </div>
+        {fotos.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+            {fotos.map((f, i) => (
+              <div key={i} className="relative">
+                <img
+                  src={URL.createObjectURL(f)}
+                  className="h-32 w-full object-cover rounded"
+                />
+                <button
+                  onClick={() => removerFoto(i)}
+                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
+                >
+                  X
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <button
           onClick={salvarDepois}
