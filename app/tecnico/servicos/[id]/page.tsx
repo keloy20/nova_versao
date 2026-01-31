@@ -32,14 +32,15 @@ export default function ServicoDepoisPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) {
-        throw new Error();
-      }
+      if (!res.ok) throw new Error();
 
       const data = await res.json();
 
-      // 🚨 só decide rota DEPOIS de carregar
-      if (data.status !== "concluido") {
+      // ✅ REGRA CORRETA DO FLUXO
+      // - aguardando_tecnico → vai pro ANTES
+      // - em_andamento → pode ficar no DEPOIS
+      // - concluido → pode ficar no DEPOIS
+      if (data.status === "aguardando_tecnico") {
         router.replace(`/tecnico/servicos/${id}/antes`);
         return;
       }
@@ -89,7 +90,6 @@ export default function ServicoDepoisPage() {
     }
   }
 
-  // 🔒 enquanto carrega, não decide nada
   if (loading) {
     return <div className="p-6">Carregando...</div>;
   }
