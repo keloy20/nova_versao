@@ -40,6 +40,11 @@ export default function AntesPage() {
         throw new Error(data?.error || "Erro ao carregar OS");
       }
 
+      if (data.status === "concluido") {
+        router.push(`/tecnico/servicos/${id}/depois`);
+        return;
+      }
+
       setOs(data);
     } catch (err: any) {
       alert("Erro ao carregar OS: " + err.message);
