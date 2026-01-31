@@ -21,6 +21,7 @@ export default function ServicoDepoisPage() {
 
   useEffect(() => {
     carregarOS();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarOS() {
@@ -31,11 +32,13 @@ export default function ServicoDepoisPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      if (!res.ok) {
+        throw new Error();
+      }
+
       const data = await res.json();
 
-      if (!res.ok) throw new Error();
-
-      // 🔒 se ainda não concluiu, não pode ficar no depois
+      // 🚨 só decide rota DEPOIS de carregar
       if (data.status !== "concluido") {
         router.replace(`/tecnico/servicos/${id}/antes`);
         return;
@@ -43,7 +46,7 @@ export default function ServicoDepoisPage() {
 
       setOs(data);
     } catch {
-      alert("Erro ao carregar OS");
+      setOs(null);
     } finally {
       setLoading(false);
     }
@@ -86,8 +89,14 @@ export default function ServicoDepoisPage() {
     }
   }
 
-  if (loading) return <div className="p-6">Carregando...</div>;
-  if (!os) return <div className="p-6">OS não encontrada</div>;
+  // 🔒 enquanto carrega, não decide nada
+  if (loading) {
+    return <div className="p-6">Carregando...</div>;
+  }
+
+  if (!os) {
+    return <div className="p-6">OS não encontrada</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-black">
