@@ -35,7 +35,6 @@ export default function AntesPage() {
 
       const data = await res.json();
 
-      // 🔒 SE JÁ CONCLUIU, NÃO MEXE MAIS
       if (data.status === "concluido") {
         router.replace("/tecnico");
         return;
@@ -51,7 +50,11 @@ export default function AntesPage() {
 
   function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
-    setFotos(Array.from(e.target.files));
+    setFotos((prev) => [...prev, ...Array.from(e.target.files!)]);
+  }
+
+  function removerFoto(index: number) {
+    setFotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function salvarAntes() {
@@ -71,7 +74,7 @@ export default function AntesPage() {
         body: formData,
       });
 
-      // ✅ VAI PARA O DEPOIS
+      localStorage.setItem(`os-step-${id}`, "depois");
       router.push(`/tecnico/servicos/${id}/depois`);
     } catch {
       alert("Erro ao salvar ANTES");
@@ -104,8 +107,9 @@ export default function AntesPage() {
           onChange={(e) => setObservacao(e.target.value)}
         />
 
-        <label className="flex items-center gap-2 cursor-pointer bg-gray-100 p-3 rounded">
-          📷 <span>Adicione suas fotos</span>
+        {/* BOTÃO DE FOTO */}
+        <label className="flex items-center justify-center gap-2 cursor-pointer bg-gray-100 p-4 rounded border border-dashed border-gray-400 text-gray-600">
+          📷 <span>Fotos aqui (câmera ou galeria)</span>
           <input
             type="file"
             accept="image/*"
@@ -114,6 +118,32 @@ export default function AntesPage() {
             onChange={handleFotosChange}
           />
         </label>
+
+        {/* CONTADOR */}
+        <div className="mt-2 text-sm text-gray-500">
+          {fotos.length} foto{fotos.length !== 1 && "s"} selecionada{fotos.length !== 1 && "s"}
+        </div>
+
+        {/* PREVIEW */}
+        {fotos.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+            {fotos.map((f, i) => (
+              <div key={i} className="relative">
+                <img
+                  src={URL.createObjectURL(f)}
+                  className="h-32 w-full object-cover rounded"
+                />
+                <button
+                  type="button"
+                  onClick={() => removerFoto(i)}
+                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 py-1 rounded"
+                >
+                  X
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <button
           onClick={salvarAntes}
