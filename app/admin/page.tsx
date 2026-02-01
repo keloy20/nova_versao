@@ -19,23 +19,7 @@ export default function AdminDashboard() {
      🔥 WHATSAPP AUTOMÁTICO (PC + CELULAR)
      NÃO REMOVE NADA DO DASHBOARD
   ===================================================== */
-  useEffect(() => {
-    const data = localStorage.getItem("whatsapp-pendente");
-    if (!data) return;
 
-    const { telefone, mensagem } = JSON.parse(data);
-    localStorage.removeItem("whatsapp-pendente");
-
-    if (!telefone) return;
-
-    const numero = telefone.replace(/\D/g, "");
-    const url = `https://wa.me/55${numero}?text=${encodeURIComponent(
-      mensagem
-    )}`;
-
-    // ✅ FUNCIONA EM PC E CELULAR
-    window.location.href = url;
-  }, []);
 
   /* =====================================================
      CARREGAR OS
@@ -44,16 +28,31 @@ export default function AdminDashboard() {
     carregarOS();
   }, []);
 
-  async function carregarOS() {
-    try {
-      const data = await apiFetch("/projects/admin/all");
-      setOsList(data);
-    } catch {
-      alert("Erro ao carregar OS");
-    } finally {
-      setLoading(false);
+ async function carregarOS() {
+  try {
+    const data = await apiFetch("/projects/admin/all");
+    setOsList(data);
+
+    // 🔥 ABRE WHATSAPP SÓ DEPOIS QUE CARREGAR
+    const pendente = localStorage.getItem("whatsapp-pendente");
+    if (pendente) {
+      const { telefone, mensagem } = JSON.parse(pendente);
+      localStorage.removeItem("whatsapp-pendente");
+
+      if (telefone) {
+        const numero = telefone.replace(/\D/g, "");
+        window.location.href =
+          `https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`;
+      }
     }
+
+  } catch {
+    alert("Erro ao carregar OS");
+  } finally {
+    setLoading(false);
   }
+}
+
 
   /* =====================================================
      CONTADORES
