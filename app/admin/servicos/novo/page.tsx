@@ -32,17 +32,9 @@ export default function NovaOSPage() {
 
   async function carregarTecnicos() {
     try {
-      setLoadingTecnicos(true);
       const data = await apiFetch("/auth/tecnicos");
-
-      if (Array.isArray(data)) {
-        setTecnicos(data);
-      } else {
-        setTecnicos([]);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar técnicos", err);
-      alert("Erro ao carregar técnicos. Verifique se está logado como admin.");
+      setTecnicos(Array.isArray(data) ? data : []);
+    } catch {
       setTecnicos([]);
     } finally {
       setLoadingTecnicos(false);
@@ -65,9 +57,31 @@ export default function NovaOSPage() {
     setTelefone(c.telefone || "");
     setMarca(c.marca || "");
     setUnidade(c.unidade || "");
-
     setClientesDB([]);
     setMostrarLista(false);
+  }
+
+  function abrirWhatsApp(telefoneDestino: string, osNumero: string) {
+    if (!telefoneDestino) return;
+
+    const numero = telefoneDestino.replace(/\D/g, "");
+
+    const mensagem = `
+Olá! 👋
+Você recebeu uma nova Ordem de Serviço.
+
+🆔 OS: ${osNumero}
+👤 Cliente: ${cliente}
+📍 Endereço: ${endereco}
+
+Por favor, acesse o sistema para mais detalhes.
+    `;
+
+    const url = `https://wa.me/55${numero}?text=${encodeURIComponent(
+      mensagem
+    )}`;
+
+    window.open(url, "_blank");
   }
 
   async function salvarOS() {
@@ -79,7 +93,11 @@ export default function NovaOSPage() {
     setLoading(true);
 
     try {
-      await apiFetch("/projects/admin/create", {
+      const tecnicoSelecionado = tecnicos.find(
+        (t) => t._id === tecnicoId
+      );
+
+      const res = await apiFetch("/projects/admin/create", {
         method: "POST",
         body: JSON.stringify({
           cliente,
@@ -93,9 +111,14 @@ export default function NovaOSPage() {
         }),
       });
 
+      // 🔥 ABRE WHATSAPP AUTOMATICAMENTE
+      if (tecnicoSelecionado?.telefone && res?.osNumero) {
+        abrirWhatsApp(tecnicoSelecionado.telefone, res.osNumero);
+      }
+
       alert("OS criada com sucesso!");
       router.push("/admin");
-    } catch (err) {
+    } catch {
       alert("Erro ao salvar OS");
     } finally {
       setLoading(false);
@@ -105,25 +128,26 @@ export default function NovaOSPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-6">Nova Ordem de Serviço</h1>
+        <h1 className="text-2xl font-bold mb-6">
+          Nova Ordem de Serviço
+        </h1>
 
         <input
           className="border p-2 rounded w-full mb-2"
-          placeholder="Cliente (ex: DASA ou Brinks)"
+          placeholder="Cliente"
           value={cliente}
           onChange={(e) => {
-            const valor = e.target.value;
-            setCliente(valor);
-
+            const v = e.target.value;
+            setCliente(v);
             setSubcliente("");
             setEndereco("");
             setTelefone("");
             setMarca("");
             setUnidade("");
 
-            if (valor.trim().length >= 2) {
+            if (v.trim().length >= 2) {
               setMostrarLista(true);
-              carregarClientes(valor);
+              carregarClientes(v);
             } else {
               setMostrarLista(false);
               setClientesDB([]);
@@ -163,37 +187,13 @@ export default function NovaOSPage() {
           </>
         )}
 
-        <input
-          className="border p-2 rounded w-full mb-3"
-          placeholder="Endereço"
-          value={endereco}
-          onChange={(e) => setEndereco(e.target.value)}
-        />
+        <input className="border p-2 rounded w-full mb-3" placeholder="Endereço" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+        <input className="border p-2 rounded w-full mb-3" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
 
-        <input
-          className="border p-2 rounded w-full mb-3"
-          placeholder="Telefone"
-          value={telefone}
-          onChange={(e) => setTelefone(e.target.value)}
-        />
+        <textarea className="border p-2 rounded w-full mb-4" rows={4} placeholder="Detalhamento do serviço" value={detalhamento} onChange={(e) => setDetalhamento(e.target.value)} />
 
-        <textarea
-          className="border p-2 rounded w-full mb-4"
-          rows={4}
-          placeholder="Detalhamento do serviço"
-          value={detalhamento}
-          onChange={(e) => setDetalhamento(e.target.value)}
-        />
-
-        <select
-          className="border p-2 rounded w-full mb-6"
-          value={tecnicoId}
-          onChange={(e) => setTecnicoId(e.target.value)}
-          disabled={loadingTecnicos}
-        >
-          <option value="">
-            {loadingTecnicos ? "Carregando técnicos..." : "Selecione o técnico"}
-          </option>
+        <select className="border p-2 rounded w-full mb-6" value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value)} disabled={loadingTecnicos}>
+          <option value="">Selecione o técnico</option>
           {tecnicos.map((t) => (
             <option key={t._id} value={t._id}>
               {t.nome}
