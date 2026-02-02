@@ -62,130 +62,118 @@ function gerarPDF() {
   if (!os) return;
 
   const doc = new jsPDF("p", "mm", "a4");
+
   const pageWidth = 210;
   const pageHeight = 297;
   const margin = 15;
-  let y = margin;
 
-  function novaPaginaSePreciso(altura = 10) {
-    if (y + altura > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
-    }
-  }
+  const imgW = 80;   // largura da foto
+  const imgH = 55;   // altura da foto
+  const gap = 5;     // espaço entre fotos
 
-  function titulo(txt: string) {
-    novaPaginaSePreciso(10);
+  /* =====================================================
+     FUNÇÕES AUXILIARES
+  ===================================================== */
+  function titulo(txt: string, y: number) {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
+    doc.setFontSize(12);
     doc.text(txt, margin, y);
-    y += 6;
     doc.setFont("helvetica", "normal");
   }
 
-  function texto(txt: string) {
+  function texto(txt: string, y: number) {
+    doc.setFontSize(10);
     const linhas = doc.splitTextToSize(
       txt || "-",
       pageWidth - margin * 2
     );
-    novaPaginaSePreciso(linhas.length * 5);
-    doc.setFontSize(10);
     doc.text(linhas, margin, y);
-    y += linhas.length * 5 + 2;
+    return y + linhas.length * 5 + 3;
   }
 
-  /* ================= CAPA ================= */
+  function renderFotosGrid(fotos: string[], startY: number) {
+    const baseX = margin;
+    const baseY = startY;
+
+    const posicoes = [
+      { x: baseX, y: baseY },
+      { x: baseX + imgW + gap, y: baseY },
+      { x: baseX, y: baseY + imgH + gap },
+      { x: baseX + imgW + gap, y: baseY + imgH + gap },
+    ];
+
+    fotos.slice(0, 4).forEach((foto, i) => {
+      doc.addImage(
+        `data:image/jpeg;base64,${foto}`,
+        "JPEG",
+        posicoes[i].x,
+        posicoes[i].y,
+        imgW,
+        imgH
+      );
+    });
+  }
+
+  /* =====================================================
+     PÁGINA 1 — ANTES
+  ===================================================== */
+  let y = margin;
+
   doc.setFontSize(16);
   doc.text("ORDEM DE SERVIÇO", pageWidth / 2, y, { align: "center" });
   y += 10;
 
-  doc.setFontSize(10);
-  texto(`OS: ${os.osNumero}`);
-  texto(`Status: ${os.status}`);
-  texto(`Cliente: ${os.cliente}`);
-  texto(`Subcliente: ${os.subcliente || "-"}`);
-  texto(`Endereço: ${os.endereco || "-"}`);
-  texto(`Telefone: ${os.telefone || "-"}`);
-  texto(`Técnico: ${os.tecnico?.nome || "-"}`);
+  y = texto(`OS: ${os.osNumero}`, y);
+  y = texto(`Status: ${os.status}`, y);
+  y = texto(`Cliente: ${os.cliente}`, y);
 
-  /* ================= DETALHAMENTO ================= */
-  titulo("DETALHAMENTO DO SERVIÇO");
-  texto(os.detalhamento);
+  if (os.cliente === "DASA") {
+    y = texto(`Unidade: ${os.unidade || "-"}`, y);
+    y = texto(`Marca: ${os.marca || "-"}`, y);
+  } else {
+    y = texto(
+      `Subcliente: ${os.subcliente || os.Subcliente || os.subgrupo || "-"}`,
+      y
+    );
+  }
 
-  /* ================= ANTES ================= */
+  y = texto(`Endereço: ${os.endereco || "-"}`, y);
+  y = texto(`Telefone: ${os.telefone || "-"}`, y);
+  y = texto(`Técnico: ${os.tecnico?.nome || "-"}`, y);
+
+  y += 4;
+  titulo("RELATÓRIO – ANTES", y);
+  y += 6;
+  y = texto(os.antes?.relatorio, y);
+  y = texto(os.antes?.observacao, y);
+
+  titulo("FOTOS – ANTES", y);
+  y += 6;
+
+  renderFotosGrid(os.antes?.fotos || [], y);
+
+  /* =====================================================
+     PÁGINA 2 — DEPOIS
+  ===================================================== */
   doc.addPage();
   y = margin;
 
-  titulo("RELATÓRIO – ANTES");
-  texto(os.antes?.relatorio);
+  titulo("RELATÓRIO – DEPOIS", y);
+  y += 6;
+  y = texto(os.depois?.relatorio, y);
+  y = texto(os.depois?.observacao, y);
 
-  titulo("OBSERVAÇÃO – ANTES");
-  texto(os.antes?.observacao);
+  titulo("FOTOS – DEPOIS", y);
+  y += 6;
 
-  titulo("FOTOS – ANTES");
+  renderFotosGrid(os.depois?.fotos || [], y);
 
-  const fotosAntes = os.antes?.fotos || [];
-  let x = margin;
-  let imgW = 80;
-  let imgH = 55;
-
-  fotosAntes.forEach((foto: string, index: number) => {
-    novaPaginaSePreciso(imgH + 10);
-
-    doc.addImage(
-      `data:image/jpeg;base64,${foto}`,
-      "JPEG",
-      x,
-      y,
-      imgW,
-      imgH
-    );
-
-    if (x + imgW * 2 > pageWidth - margin) {
-      x = margin;
-      y += imgH + 5;
-    } else {
-      x += imgW + 5;
-    }
-  });
-
-  /* ================= DEPOIS ================= */
-  doc.addPage();
-  y = margin;
-  x = margin;
-
-  titulo("RELATÓRIO – DEPOIS");
-  texto(os.depois?.relatorio);
-
-  titulo("OBSERVAÇÃO – DEPOIS");
-  texto(os.depois?.observacao);
-
-  titulo("FOTOS – DEPOIS");
-
-  const fotosDepois = os.depois?.fotos || [];
-
-  fotosDepois.forEach((foto: string) => {
-    novaPaginaSePreciso(imgH + 10);
-
-    doc.addImage(
-      `data:image/jpeg;base64,${foto}`,
-      "JPEG",
-      x,
-      y,
-      imgW,
-      imgH
-    );
-
-    if (x + imgW * 2 > pageWidth - margin) {
-      x = margin;
-      y += imgH + 5;
-    } else {
-      x += imgW + 5;
-    }
-  });
-
+  /* =====================================================
+     SALVAR
+  ===================================================== */
   doc.save(`OS-${os.osNumero}.pdf`);
 }
+
 
 
   if (loading) {
