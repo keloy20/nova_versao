@@ -70,12 +70,16 @@ export default function EditarOSPage() {
   }
 
   async function carregarTecnicos() {
-    try {
-      const data = await apiFetch("/auth/tecnicos");
-      setTecnicos(data);
-    } catch {
-      alert("Erro ao carregar técnicos");
-    }
+    const data = await apiFetch("/auth/tecnicos");
+    setTecnicos(data);
+  }
+
+  function removerFotoAntes(index: number) {
+    setAntesFotos(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function removerFotoDepois(index: number) {
+    setDepoisFotos(prev => prev.filter((_, i) => i !== index));
   }
 
   function handleNovasFotosAntes(files: FileList | null) {
@@ -91,10 +95,8 @@ export default function EditarOSPage() {
   async function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = (reader.result as string).split(",")[1];
-        resolve(base64);
-      };
+      reader.onload = () =>
+        resolve((reader.result as string).split(",")[1]);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
@@ -110,31 +112,29 @@ export default function EditarOSPage() {
       const novasDepoisBase64 = [];
       for (const f of novasFotosDepois) novasDepoisBase64.push(await fileToBase64(f));
 
-      const payload = {
-        cliente,
-        subcliente,
-        marca,
-        unidade,
-        endereco,
-        telefone,
-        detalhamento,
-        status,
-        tecnicoId, // 🔥 TROCA DE TÉCNICO FUNCIONANDO
-        antes: {
-          relatorio: antesRelatorio,
-          observacao: antesObs,
-          fotos: [...antesFotos, ...novasAntesBase64],
-        },
-        depois: {
-          relatorio: depoisRelatorio,
-          observacao: depoisObs,
-          fotos: [...depoisFotos, ...novasDepoisBase64],
-        },
-      };
-
       await apiFetch(`/projects/admin/update/${id}`, {
         method: "PUT",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          cliente,
+          subcliente,
+          marca,
+          unidade,
+          endereco,
+          telefone,
+          detalhamento,
+          status,
+          tecnicoId,
+          antes: {
+            relatorio: antesRelatorio,
+            observacao: antesObs,
+            fotos: [...antesFotos, ...novasAntesBase64].slice(0, 4),
+          },
+          depois: {
+            relatorio: depoisRelatorio,
+            observacao: depoisObs,
+            fotos: [...depoisFotos, ...novasDepoisBase64].slice(0, 4),
+          },
+        }),
       });
 
       alert("OS atualizada com sucesso!");
@@ -163,18 +163,10 @@ export default function EditarOSPage() {
 
         <textarea className="border p-2 rounded w-full" rows={3} value={detalhamento} onChange={e => setDetalhamento(e.target.value)} />
 
-        {/* 🔁 TROCAR TÉCNICO */}
-        <select
-          className="border p-2 rounded w-full"
-          value={tecnicoId}
-          onChange={e => setTecnicoId(e.target.value)}
-        >
+        {/* TROCAR TÉCNICO */}
+        <select className="border p-2 rounded w-full" value={tecnicoId} onChange={e => setTecnicoId(e.target.value)}>
           <option value="">Selecione o técnico</option>
-          {tecnicos.map(t => (
-            <option key={t._id} value={t._id}>
-              {t.nome}
-            </option>
-          ))}
+          {tecnicos.map(t => <option key={t._id} value={t._id}>{t.nome}</option>)}
         </select>
 
         {/* ===== ANTES ===== */}
@@ -182,16 +174,38 @@ export default function EditarOSPage() {
         <textarea className="border p-2 rounded w-full" rows={2} value={antesRelatorio} onChange={e => setAntesRelatorio(e.target.value)} />
         <textarea className="border p-2 rounded w-full" rows={2} value={antesObs} onChange={e => setAntesObs(e.target.value)} />
 
+        <div className="grid grid-cols-2 gap-3">
+          {antesFotos.map((foto, i) => (
+            <div key={i} className="relative">
+              <img src={`data:image/jpeg;base64,${foto}`} className="h-32 w-full object-cover rounded" />
+              <button onClick={() => removerFotoAntes(i)} className="absolute top-1 right-1 bg-red-600 text-white px-2 text-xs rounded">X</button>
+            </div>
+          ))}
+        </div>
+
+        {(antesFotos.length + novasFotosAntes.length) < 4 && (
+          <input type="file" multiple accept="image/*" onChange={e => handleNovasFotosAntes(e.target.files)} />
+        )}
+
         {/* ===== DEPOIS ===== */}
         <h2 className="font-bold mt-4">DEPOIS</h2>
         <textarea className="border p-2 rounded w-full" rows={2} value={depoisRelatorio} onChange={e => setDepoisRelatorio(e.target.value)} />
         <textarea className="border p-2 rounded w-full" rows={2} value={depoisObs} onChange={e => setDepoisObs(e.target.value)} />
 
-        <button
-          onClick={salvarAlteracoes}
-          disabled={salvando}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded w-full font-bold"
-        >
+        <div className="grid grid-cols-2 gap-3">
+          {depoisFotos.map((foto, i) => (
+            <div key={i} className="relative">
+              <img src={`data:image/jpeg;base64,${foto}`} className="h-32 w-full object-cover rounded" />
+              <button onClick={() => removerFotoDepois(i)} className="absolute top-1 right-1 bg-red-600 text-white px-2 text-xs rounded">X</button>
+            </div>
+          ))}
+        </div>
+
+        {(depoisFotos.length + novasFotosDepois.length) < 4 && (
+          <input type="file" multiple accept="image/*" onChange={e => handleNovasFotosDepois(e.target.files)} />
+        )}
+
+        <button onClick={salvarAlteracoes} disabled={salvando} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded w-full font-bold">
           {salvando ? "Salvando..." : "Salvar Alterações"}
         </button>
 
