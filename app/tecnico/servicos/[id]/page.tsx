@@ -1,21 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://gerenciador-de-os.onrender.com";
 
-type Aba = "antes" | "depois";
-
-export default function ServicoPage() {
+export default function ServicoVisualizacaoPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
 
   const [os, setOs] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [aba, setAba] = useState<Aba>("antes");
 
   useEffect(() => {
     carregarOS();
@@ -24,6 +22,7 @@ export default function ServicoPage() {
   async function carregarOS() {
     try {
       const token = localStorage.getItem("token");
+
       const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -32,6 +31,25 @@ export default function ServicoPage() {
 
       const data = await res.json();
       setOs(data);
+
+      // 🔁 REDIRECIONAMENTO AUTOMÁTICO
+      if (data.status !== "concluido") {
+        const step = localStorage.getItem(`os-step-${id}`);
+
+        if (step === "depois") {
+          router.replace(`/tecnico/servicos/${id}/depois`);
+          return;
+        }
+
+        if (data.antes) {
+          router.replace(`/tecnico/servicos/${id}/depois`);
+          return;
+        }
+
+        router.replace(`/tecnico/servicos/${id}/antes`);
+        return;
+      }
+
     } catch {
       setOs(null);
     } finally {
@@ -42,120 +60,65 @@ export default function ServicoPage() {
   if (loading) return <div className="p-6">Carregando...</div>;
   if (!os) return <div className="p-6">OS não encontrada</div>;
 
+  /* ================= VISUALIZAÇÃO (SÓ CONCLUÍDA) ================= */
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6 space-y-6">
 
-        {/* CABEÇALHO */}
-        <div>
-          <h1 className="text-2xl font-bold">OS {os.osNumero}</h1>
-          <p className="text-sm text-gray-600">
-            Status atual: <b>{os.status}</b>
+        <h1 className="text-2xl font-bold">
+          OS {os.osNumero} — Concluída
+        </h1>
+
+        {/* ===== ANTES ===== */}
+        <section>
+          <h2 className="text-lg font-bold mb-2">ANTES</h2>
+
+          <p className="font-semibold">Relatório inicial</p>
+          <p className="whitespace-pre-line text-sm mb-2">
+            {os.antes?.relatorio || "—"}
           </p>
-        </div>
 
-        {/* BOTÕES ANTES / DEPOIS */}
-        <div className="flex gap-4">
-          <button
-            onClick={() => setAba("antes")}
-            className={`flex-1 py-4 text-lg font-bold rounded-lg transition
-              ${
-                aba === "antes"
-                  ? "bg-blue-600 text-white"
-                  : "bg-blue-100 text-blue-800"
-              }`}
-          >
-            ANTES
-          </button>
-
-          <button
-            onClick={() => setAba("depois")}
-            className={`flex-1 py-4 text-lg font-bold rounded-lg transition
-              ${
-                aba === "depois"
-                  ? "bg-green-600 text-white"
-                  : "bg-green-100 text-green-800"
-              }`}
-          >
-            DEPOIS
-          </button>
-        </div>
-
-        {/* DESCRIÇÃO */}
-        <div className="bg-blue-50 border rounded-lg p-4">
-          <p className="font-semibold text-blue-700 mb-1">
-            Descrição do serviço
+          <p className="font-semibold">Observação inicial</p>
+          <p className="whitespace-pre-line text-sm mb-4">
+            {os.antes?.observacao || "—"}
           </p>
-          <p className="whitespace-pre-line text-sm">
-            {os.detalhamento || "—"}
-          </p>
-        </div>
 
-        {/* ================= ANTES ================= */}
-        {aba === "antes" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">ANTES</h2>
-
-            <div>
-              <p className="font-semibold">Relatório inicial</p>
-              <p className="text-sm whitespace-pre-line">
-                {os.antes?.relatorio || "—"}
-              </p>
-            </div>
-
-            <div>
-              <p className="font-semibold">Observação inicial</p>
-              <p className="text-sm whitespace-pre-line">
-                {os.antes?.observacao || "—"}
-              </p>
-            </div>
-
-            {os.antes?.fotos?.length > 0 && (
-              <div className="grid grid-cols-2 gap-3">
-                {os.antes.fotos.map((foto: string, i: number) => (
-                  <img
-                    key={i}
-                    src={`data:image/jpeg;base64,${foto}`}
-                    className="h-32 w-full object-cover rounded"
-                  />
-                ))}
-              </div>
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            {os.antes?.fotos?.map((f: string, i: number) => (
+              <img
+                key={i}
+                src={`data:image/jpeg;base64,${f}`}
+                className="h-32 w-full object-cover rounded"
+              />
+            ))}
           </div>
-        )}
+        </section>
 
-        {/* ================= DEPOIS ================= */}
-        {aba === "depois" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">DEPOIS</h2>
+        {/* ===== DEPOIS ===== */}
+        <section>
+          <h2 className="text-lg font-bold mb-2">DEPOIS</h2>
 
-            <div>
-              <p className="font-semibold">Relatório final</p>
-              <p className="text-sm whitespace-pre-line">
-                {os.depois?.relatorio || "—"}
-              </p>
-            </div>
+          <p className="font-semibold">Relatório final</p>
+          <p className="whitespace-pre-line text-sm mb-2">
+            {os.depois?.relatorio || "—"}
+          </p>
 
-            <div>
-              <p className="font-semibold">Observação final</p>
-              <p className="text-sm whitespace-pre-line">
-                {os.depois?.observacao || "—"}
-              </p>
-            </div>
+          <p className="font-semibold">Observação final</p>
+          <p className="whitespace-pre-line text-sm mb-4">
+            {os.depois?.observacao || "—"}
+          </p>
 
-            {os.depois?.fotos?.length > 0 && (
-              <div className="grid grid-cols-2 gap-3">
-                {os.depois.fotos.map((foto: string, i: number) => (
-                  <img
-                    key={i}
-                    src={`data:image/jpeg;base64,${foto}`}
-                    className="h-32 w-full object-cover rounded"
-                  />
-                ))}
-              </div>
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            {os.depois?.fotos?.map((f: string, i: number) => (
+              <img
+                key={i}
+                src={`data:image/jpeg;base64,${f}`}
+                className="h-32 w-full object-cover rounded"
+              />
+            ))}
           </div>
-        )}
+        </section>
 
       </div>
     </div>
