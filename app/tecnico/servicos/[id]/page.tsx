@@ -32,7 +32,7 @@ export default function ServicoPage() {
       const data = await res.json();
       setOs(data);
 
-      // controle de etapa só se NÃO estiver concluída
+      // controle de etapa apenas se NÃO estiver concluída
       if (data.status === "aguardando_tecnico") {
         localStorage.setItem(`os-step-${id}`, "antes");
       }
@@ -66,7 +66,7 @@ export default function ServicoPage() {
     <div className="min-h-screen bg-gray-50 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6 space-y-6">
 
-        {/* CABEÇALHO */}
+        {/* ================= CABEÇALHO ================= */}
         <div>
           <h1 className="text-2xl font-bold">
             OS {os.osNumero}
@@ -77,7 +77,7 @@ export default function ServicoPage() {
           </p>
         </div>
 
-        {/* DADOS DO CLIENTE */}
+        {/* ================= DADOS DO CLIENTE ================= */}
         <div className="bg-gray-50 border rounded-lg p-4 space-y-2">
           <p className="font-semibold">Cliente</p>
           <p>{os.cliente}</p>
@@ -90,7 +90,10 @@ export default function ServicoPage() {
           ) : (
             <>
               {(os.subcliente || os.subgrupo) && (
-                <p><b>Subcliente:</b> {os.subcliente || os.subgrupo}</p>
+                <p>
+                  <b>Subcliente:</b>{" "}
+                  {os.subcliente || os.subgrupo}
+                </p>
               )}
             </>
           )}
@@ -99,8 +102,8 @@ export default function ServicoPage() {
           {os.telefone && <p><b>Telefone:</b> {os.telefone}</p>}
         </div>
 
-        {/* DESCRIÇÃO */}
-        <div className="bg-blue-50 border rounded-lg p-4">
+        {/* ================= DESCRIÇÃO DO SERVIÇO ================= */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="font-semibold text-blue-700 mb-1">
             Descrição do serviço
           </p>
@@ -116,10 +119,13 @@ export default function ServicoPage() {
               Serviço concluído
             </h2>
 
-            {/* ANTES */}
+            {/* ===== ANTES ===== */}
             <div>
               <p className="font-semibold mb-1">ANTES</p>
-              <p className="text-sm mb-2">{os.antes?.relatorio || "—"}</p>
+
+              <p className="text-sm mb-2 whitespace-pre-line">
+                {os.antes?.observacao || "—"}
+              </p>
 
               <div className="grid grid-cols-2 gap-3">
                 {os.antes?.fotos?.map((foto: string, i: number) => (
@@ -132,10 +138,13 @@ export default function ServicoPage() {
               </div>
             </div>
 
-            {/* DEPOIS */}
+            {/* ===== DEPOIS ===== */}
             <div>
               <p className="font-semibold mb-1">DEPOIS</p>
-              <p className="text-sm mb-2">{os.depois?.relatorio || "—"}</p>
+
+              <p className="text-sm mb-2 whitespace-pre-line">
+                {os.depois?.observacao || "—"}
+              </p>
 
               <div className="grid grid-cols-2 gap-3">
                 {os.depois?.fotos?.map((foto: string, i: number) => (
@@ -150,7 +159,7 @@ export default function ServicoPage() {
           </div>
         )}
 
-        {/* ================= AÇÕES (SÓ SE NÃO CONCLUÍDA) ================= */}
+        {/* ================= AÇÕES (NÃO CONCLUÍDA) ================= */}
         {!isConcluida && (
           <div className="flex flex-col gap-4">
             <button
