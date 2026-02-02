@@ -58,123 +58,116 @@ export default function DetalheOSPage() {
     }
   }
 
-function gerarPDF() {
-  if (!os) return;
-
-  const doc = new jsPDF("p", "mm", "a4");
-
-  const pageWidth = 210;
-  const pageHeight = 297;
-  const margin = 15;
-
-  const imgW = 80;   // largura da foto
-  const imgH = 55;   // altura da foto
-  const gap = 5;     // espaço entre fotos
-
   /* =====================================================
-     FUNÇÕES AUXILIARES
+     PDF — 2 PÁGINAS FIXAS (ANTES / DEPOIS)
   ===================================================== */
-  function titulo(txt: string, y: number) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(txt, margin, y);
-    doc.setFont("helvetica", "normal");
-  }
+  function gerarPDF() {
+    if (!os) return;
 
-  function texto(txt: string, y: number) {
-    doc.setFontSize(10);
-    const linhas = doc.splitTextToSize(
-      txt || "-",
-      pageWidth - margin * 2
-    );
-    doc.text(linhas, margin, y);
-    return y + linhas.length * 5 + 3;
-  }
+    const doc = new jsPDF("p", "mm", "a4");
+    const pageWidth = 210;
+    const margin = 15;
 
-  function renderFotosGrid(fotos: string[], startY: number) {
-    const baseX = margin;
-    const baseY = startY;
+    const imgW = 80;
+    const imgH = 55;
+    const gap = 5;
 
-    const posicoes = [
-      { x: baseX, y: baseY },
-      { x: baseX + imgW + gap, y: baseY },
-      { x: baseX, y: baseY + imgH + gap },
-      { x: baseX + imgW + gap, y: baseY + imgH + gap },
-    ];
+    function titulo(txt: string, y: number) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(txt, margin, y);
+      doc.setFont("helvetica", "normal");
+    }
 
-    fotos.slice(0, 4).forEach((foto, i) => {
-      doc.addImage(
-        `data:image/jpeg;base64,${foto}`,
-        "JPEG",
-        posicoes[i].x,
-        posicoes[i].y,
-        imgW,
-        imgH
+    function texto(txt: string, y: number) {
+      doc.setFontSize(10);
+      const linhas = doc.splitTextToSize(
+        txt || "-",
+        pageWidth - margin * 2
       );
-    });
+      doc.text(linhas, margin, y);
+      return y + linhas.length * 5 + 3;
+    }
+
+    function fotosGrid(fotos: string[], startY: number) {
+      const baseX = margin;
+      const pos = [
+        { x: baseX, y: startY },
+        { x: baseX + imgW + gap, y: startY },
+        { x: baseX, y: startY + imgH + gap },
+        { x: baseX + imgW + gap, y: startY + imgH + gap },
+      ];
+
+      fotos.slice(0, 4).forEach((foto, i) => {
+        doc.addImage(
+          `data:image/jpeg;base64,${foto}`,
+          "JPEG",
+          pos[i].x,
+          pos[i].y,
+          imgW,
+          imgH
+        );
+      });
+    }
+
+    /* ================= PÁGINA 1 — ANTES ================= */
+    let y = margin;
+
+    doc.setFontSize(16);
+    doc.text("ORDEM DE SERVIÇO", pageWidth / 2, y, { align: "center" });
+    y += 10;
+
+    y = texto(`OS: ${os.osNumero}`, y);
+    y = texto(`Status: ${os.status}`, y);
+    y = texto(`Cliente: ${os.cliente}`, y);
+
+    if (os.cliente === "DASA") {
+      y = texto(`Unidade: ${os.unidade || "-"}`, y);
+      y = texto(`Marca: ${os.marca || "-"}`, y);
+    } else {
+      y = texto(
+        `Subcliente: ${os.subcliente || os.Subcliente || os.subgrupo || "-"}`,
+        y
+      );
+    }
+
+    y = texto(`Endereço: ${os.endereco || "-"}`, y);
+    y = texto(`Telefone: ${os.telefone || "-"}`, y);
+    y = texto(`Técnico: ${os.tecnico?.nome || "-"}`, y);
+
+    y += 5;
+    titulo("RELATÓRIO INICIAL (ANTES)", y);
+    y += 6;
+    y = texto(os.antes?.relatorio, y);
+
+    titulo("OBSERVAÇÃO INICIAL (ANTES)", y);
+    y += 6;
+    y = texto(os.antes?.observacao, y);
+
+    titulo("FOTOS – ANTES", y);
+    y += 6;
+    fotosGrid(os.antes?.fotos || [], y);
+
+    /* ================= PÁGINA 2 — DEPOIS ================= */
+    doc.addPage();
+    y = margin;
+
+    titulo("RELATÓRIO FINAL (DEPOIS)", y);
+    y += 6;
+    y = texto(os.depois?.relatorio, y);
+
+    titulo("OBSERVAÇÃO FINAL (DEPOIS)", y);
+    y += 6;
+    y = texto(os.depois?.observacao, y);
+
+    titulo("FOTOS – DEPOIS", y);
+    y += 6;
+    fotosGrid(os.depois?.fotos || [], y);
+
+    doc.save(`OS-${os.osNumero}.pdf`);
   }
 
-  /* =====================================================
-     PÁGINA 1 — ANTES
-  ===================================================== */
-  let y = margin;
-
-  doc.setFontSize(16);
-  doc.text("ORDEM DE SERVIÇO", pageWidth / 2, y, { align: "center" });
-  y += 10;
-
-  y = texto(`OS: ${os.osNumero}`, y);
-  y = texto(`Status: ${os.status}`, y);
-  y = texto(`Cliente: ${os.cliente}`, y);
-
-  if (os.cliente === "DASA") {
-    y = texto(`Unidade: ${os.unidade || "-"}`, y);
-    y = texto(`Marca: ${os.marca || "-"}`, y);
-  } else {
-    y = texto(
-      `Subcliente: ${os.subcliente || os.Subcliente || os.subgrupo || "-"}`,
-      y
-    );
-  }
-
-  y = texto(`Endereço: ${os.endereco || "-"}`, y);
-  y = texto(`Telefone: ${os.telefone || "-"}`, y);
-  y = texto(`Técnico: ${os.tecnico?.nome || "-"}`, y);
-
-  y += 4;
-  titulo("RELATÓRIO – ANTES", y);
-  y += 6;
-  y = texto(os.antes?.relatorio, y);
-  y = texto(os.antes?.observacao, y);
-
-  titulo("FOTOS – ANTES", y);
-  y += 6;
-
-  renderFotosGrid(os.antes?.fotos || [], y);
-
-  /* =====================================================
-     PÁGINA 2 — DEPOIS
-  ===================================================== */
-  doc.addPage();
-  y = margin;
-
-  titulo("RELATÓRIO – DEPOIS", y);
-  y += 6;
-  y = texto(os.depois?.relatorio, y);
-  y = texto(os.depois?.observacao, y);
-
-  titulo("FOTOS – DEPOIS", y);
-  y += 6;
-
-  renderFotosGrid(os.depois?.fotos || [], y);
-
-  /* =====================================================
-     SALVAR
-  ===================================================== */
-  doc.save(`OS-${os.osNumero}.pdf`);
-}
-
-
+  /* ===================================================== */
 
   if (loading) {
     return <div className="p-6 text-center">Carregando...</div>;
@@ -245,7 +238,6 @@ function gerarPDF() {
 
         {/* DADOS */}
         <div className="space-y-4 text-sm">
-
           <Info label="Número da OS" value={os.osNumero} />
 
           <div>
