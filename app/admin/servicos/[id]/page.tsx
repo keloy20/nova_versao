@@ -122,7 +122,7 @@ function gerarPDF() {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text(
-    "Segurança Eletrônica",
+    "Serviços tecnológicos",
     pageWidth - margin,
     y + 5,
     { align: "right" }

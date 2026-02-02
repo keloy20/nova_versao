@@ -7,7 +7,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://gerenciador-de-os.onrender.com";
 
-export default function ServicoVisualizacaoPage() {
+export default function ServicoPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -31,25 +31,6 @@ export default function ServicoVisualizacaoPage() {
 
       const data = await res.json();
       setOs(data);
-
-      // 🔁 REDIRECIONAMENTO AUTOMÁTICO
-      if (data.status !== "concluido") {
-        const step = localStorage.getItem(`os-step-${id}`);
-
-        if (step === "depois") {
-          router.replace(`/tecnico/servicos/${id}/depois`);
-          return;
-        }
-
-        if (data.antes) {
-          router.replace(`/tecnico/servicos/${id}/depois`);
-          return;
-        }
-
-        router.replace(`/tecnico/servicos/${id}/antes`);
-        return;
-      }
-
     } catch {
       setOs(null);
     } finally {
@@ -60,65 +41,104 @@ export default function ServicoVisualizacaoPage() {
   if (loading) return <div className="p-6">Carregando...</div>;
   if (!os) return <div className="p-6">OS não encontrada</div>;
 
-  /* ================= VISUALIZAÇÃO (SÓ CONCLUÍDA) ================= */
-
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6 space-y-6">
 
-        <h1 className="text-2xl font-bold">
-          OS {os.osNumero} — Concluída
-        </h1>
+        {/* CABEÇALHO */}
+        <div>
+          <h1 className="text-2xl font-bold">OS {os.osNumero}</h1>
+          <p className="text-sm text-gray-600">
+            Status atual: <b>{os.status}</b>
+          </p>
+        </div>
 
-        {/* ===== ANTES ===== */}
-        <section>
-          <h2 className="text-lg font-bold mb-2">ANTES</h2>
+        {/* DESCRIÇÃO DO ADM (PRINCIPAL) */}
+        <div className="bg-blue-50 border rounded-lg p-4">
+          <p className="font-semibold text-blue-700 mb-1">
+            Descrição do serviço
+          </p>
+          <p className="whitespace-pre-line text-sm">
+            {os.detalhamento || "—"}
+          </p>
+        </div>
+
+        {/* BOTÕES */}
+        <div className="flex gap-4">
+          <button
+            onClick={() =>
+              router.push(`/tecnico/servicos/${id}/antes`)
+            }
+            className="flex-1 py-4 text-lg font-bold rounded-lg bg-blue-600 text-white"
+          >
+            ANTES
+          </button>
+
+          <button
+            onClick={() =>
+              router.push(`/tecnico/servicos/${id}/depois`)
+            }
+            className="flex-1 py-4 text-lg font-bold rounded-lg bg-green-600 text-white"
+          >
+            DEPOIS
+          </button>
+        </div>
+
+        {/* ================= HISTÓRICO ================= */}
+
+        {/* ANTES */}
+        <div className="space-y-3 pt-4 border-t">
+          <h2 className="text-lg font-bold">ANTES (registrado)</h2>
 
           <p className="font-semibold">Relatório inicial</p>
-          <p className="whitespace-pre-line text-sm mb-2">
+          <p className="text-sm whitespace-pre-line">
             {os.antes?.relatorio || "—"}
           </p>
 
           <p className="font-semibold">Observação inicial</p>
-          <p className="whitespace-pre-line text-sm mb-4">
+          <p className="text-sm whitespace-pre-line">
             {os.antes?.observacao || "—"}
           </p>
 
-          <div className="grid grid-cols-2 gap-3">
-            {os.antes?.fotos?.map((f: string, i: number) => (
-              <img
-                key={i}
-                src={`data:image/jpeg;base64,${f}`}
-                className="h-32 w-full object-cover rounded"
-              />
-            ))}
-          </div>
-        </section>
+          {os.antes?.fotos?.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {os.antes.fotos.map((f: string, i: number) => (
+                <img
+                  key={i}
+                  src={`data:image/jpeg;base64,${f}`}
+                  className="h-32 w-full object-cover rounded"
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* ===== DEPOIS ===== */}
-        <section>
-          <h2 className="text-lg font-bold mb-2">DEPOIS</h2>
+        {/* DEPOIS */}
+        <div className="space-y-3 pt-4 border-t">
+          <h2 className="text-lg font-bold">DEPOIS (registrado)</h2>
 
           <p className="font-semibold">Relatório final</p>
-          <p className="whitespace-pre-line text-sm mb-2">
+          <p className="text-sm whitespace-pre-line">
             {os.depois?.relatorio || "—"}
           </p>
 
           <p className="font-semibold">Observação final</p>
-          <p className="whitespace-pre-line text-sm mb-4">
+          <p className="text-sm whitespace-pre-line">
             {os.depois?.observacao || "—"}
           </p>
 
-          <div className="grid grid-cols-2 gap-3">
-            {os.depois?.fotos?.map((f: string, i: number) => (
-              <img
-                key={i}
-                src={`data:image/jpeg;base64,${f}`}
-                className="h-32 w-full object-cover rounded"
-              />
-            ))}
-          </div>
-        </section>
+          {os.depois?.fotos?.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {os.depois.fotos.map((f: string, i: number) => (
+                <img
+                  key={i}
+                  src={`data:image/jpeg;base64,${f}`}
+                  className="h-32 w-full object-cover rounded"
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
       </div>
     </div>
