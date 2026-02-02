@@ -64,33 +64,28 @@ export default function ServicoPage() {
           </p>
         </div>
 
-        {/* ================= CONCLUÍDA ================= */}
-        {isConcluida && (
-          <div className="space-y-8">
-            <h2 className="text-lg font-bold text-green-700">
-              Serviço concluído
-            </h2>
+        {/* ================= ANTES ================= */}
+        {os.antes && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold">ANTES</h2>
 
-            {/* ================= ANTES ================= */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-lg">ANTES</h3>
+            <div>
+              <p className="font-semibold">Relatório inicial</p>
+              <p className="text-sm whitespace-pre-line">
+                {os.antes.relatorio || "—"}
+              </p>
+            </div>
 
-              <div>
-                <p className="font-semibold">Relatório inicial</p>
-                <p className="text-sm whitespace-pre-line">
-                  {os.antes?.relatorio || "—"}
-                </p>
-              </div>
+            <div>
+              <p className="font-semibold">Observação inicial</p>
+              <p className="text-sm whitespace-pre-line">
+                {os.antes.observacao || "—"}
+              </p>
+            </div>
 
-              <div>
-                <p className="font-semibold">Observação inicial</p>
-                <p className="text-sm whitespace-pre-line">
-                  {os.antes?.observacao || "—"}
-                </p>
-              </div>
-
+            {os.antes.fotos?.length > 0 && (
               <div className="grid grid-cols-2 gap-3">
-                {os.antes?.fotos?.map((foto: string, i: number) => (
+                {os.antes.fotos.map((foto: string, i: number) => (
                   <img
                     key={i}
                     src={`data:image/jpeg;base64,${foto}`}
@@ -98,28 +93,32 @@ export default function ServicoPage() {
                   />
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= DEPOIS ================= */}
+        {isConcluida && os.depois && (
+          <div className="space-y-4 pt-6 border-t">
+            <h2 className="text-lg font-bold">DEPOIS</h2>
+
+            <div>
+              <p className="font-semibold">Relatório final</p>
+              <p className="text-sm whitespace-pre-line">
+                {os.depois.relatorio || "—"}
+              </p>
             </div>
 
-            {/* ================= DEPOIS ================= */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-lg">DEPOIS</h3>
+            <div>
+              <p className="font-semibold">Observação final</p>
+              <p className="text-sm whitespace-pre-line">
+                {os.depois.observacao || "—"}
+              </p>
+            </div>
 
-              <div>
-                <p className="font-semibold">Relatório final</p>
-                <p className="text-sm whitespace-pre-line">
-                  {os.depois?.relatorio || "—"}
-                </p>
-              </div>
-
-              <div>
-                <p className="font-semibold">Observação final</p>
-                <p className="text-sm whitespace-pre-line">
-                  {os.depois?.observacao || "—"}
-                </p>
-              </div>
-
+            {os.depois.fotos?.length > 0 && (
               <div className="grid grid-cols-2 gap-3">
-                {os.depois?.fotos?.map((foto: string, i: number) => (
+                {os.depois.fotos.map((foto: string, i: number) => (
                   <img
                     key={i}
                     src={`data:image/jpeg;base64,${foto}`}
@@ -127,7 +126,7 @@ export default function ServicoPage() {
                   />
                 ))}
               </div>
-            </div>
+            )}
           </div>
         )}
 
