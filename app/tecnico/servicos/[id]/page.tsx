@@ -32,7 +32,7 @@ export default function ServicoPage() {
       const data = await res.json();
       setOs(data);
 
-      // 🔁 REGRA: CONTROLE DE ETAPA
+      // controle de etapa só se NÃO estiver concluída
       if (data.status === "aguardando_tecnico") {
         localStorage.setItem(`os-step-${id}`, "antes");
       }
@@ -52,13 +52,13 @@ export default function ServicoPage() {
   }
 
   function irParaEtapa(etapa: "antes" | "depois") {
-    localStorage.setItem(`os-step-${id}`, etapa);
     router.push(`/tecnico/servicos/${id}/${etapa}`);
   }
 
   if (loading) return <div className="p-6">Carregando...</div>;
   if (!os) return <div className="p-6">OS não encontrada</div>;
 
+  const isConcluida = os.status === "concluido";
   const podeIrDepois = os.status === "em_andamento";
   const isDASA = os.cliente?.toUpperCase() === "DASA";
 
@@ -66,7 +66,7 @@ export default function ServicoPage() {
     <div className="min-h-screen bg-gray-50 p-6 text-black">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6 space-y-6">
 
-        {/* ================= CABEÇALHO ================= */}
+        {/* CABEÇALHO */}
         <div>
           <h1 className="text-2xl font-bold">
             OS {os.osNumero}
@@ -77,50 +77,30 @@ export default function ServicoPage() {
           </p>
         </div>
 
-        {/* ================= DADOS DO CLIENTE ================= */}
+        {/* DADOS DO CLIENTE */}
         <div className="bg-gray-50 border rounded-lg p-4 space-y-2">
           <p className="font-semibold">Cliente</p>
           <p>{os.cliente}</p>
 
           {isDASA ? (
             <>
-              {os.unidade && (
-                <p className="text-sm text-gray-600">
-                  <b>Unidade:</b> {os.unidade}
-                </p>
-              )}
-              {os.marca && (
-                <p className="text-sm text-gray-600">
-                  <b>Marca:</b> {os.marca}
-                </p>
-              )}
+              {os.unidade && <p><b>Unidade:</b> {os.unidade}</p>}
+              {os.marca && <p><b>Marca:</b> {os.marca}</p>}
             </>
           ) : (
             <>
-              {(os.subcliente || os.Subcliente || os.subgrupo) && (
-                <p className="text-sm text-gray-600">
-                  <b>Subcliente:</b>{" "}
-                  {os.subcliente || os.Subcliente || os.subgrupo}
-                </p>
+              {(os.subcliente || os.subgrupo) && (
+                <p><b>Subcliente:</b> {os.subcliente || os.subgrupo}</p>
               )}
             </>
           )}
 
-          {os.endereco && (
-            <p className="text-sm text-gray-600">
-              <b>Endereço:</b> {os.endereco}
-            </p>
-          )}
-
-          {os.telefone && (
-            <p className="text-sm text-gray-600">
-              <b>Telefone:</b> {os.telefone}
-            </p>
-          )}
+          {os.endereco && <p><b>Endereço:</b> {os.endereco}</p>}
+          {os.telefone && <p><b>Telefone:</b> {os.telefone}</p>}
         </div>
 
-        {/* ================= DETALHAMENTO DO SERVIÇO ================= */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        {/* DESCRIÇÃO */}
+        <div className="bg-blue-50 border rounded-lg p-4">
           <p className="font-semibold text-blue-700 mb-1">
             Descrição do serviço
           </p>
@@ -129,33 +109,76 @@ export default function ServicoPage() {
           </p>
         </div>
 
-        {/* ================= AÇÕES ================= */}
-        <div className="flex flex-col gap-4">
-          <button
-            onClick={() => irParaEtapa("antes")}
-            className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded"
-          >
-            Ir para ANTES
-          </button>
+        {/* ================= VISUALIZAÇÃO FINAL (CONCLUÍDA) ================= */}
+        {isConcluida && (
+          <div className="space-y-6">
+            <h2 className="text-lg font-bold text-green-700">
+              Serviço concluído
+            </h2>
 
-          <button
-            onClick={() => irParaEtapa("depois")}
-            disabled={!podeIrDepois}
-            className={`py-3 rounded text-white ${
-              podeIrDepois
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
-          >
-            Ir para DEPOIS
-          </button>
+            {/* ANTES */}
+            <div>
+              <p className="font-semibold mb-1">ANTES</p>
+              <p className="text-sm mb-2">{os.antes?.relatorio || "—"}</p>
 
-          {!podeIrDepois && (
-            <p className="text-sm text-gray-500 text-center">
-              ⚠️ Finalize o ANTES para liberar o DEPOIS
-            </p>
-          )}
-        </div>
+              <div className="grid grid-cols-2 gap-3">
+                {os.antes?.fotos?.map((foto: string, i: number) => (
+                  <img
+                    key={i}
+                    src={`data:image/jpeg;base64,${foto}`}
+                    className="h-32 w-full object-cover rounded"
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* DEPOIS */}
+            <div>
+              <p className="font-semibold mb-1">DEPOIS</p>
+              <p className="text-sm mb-2">{os.depois?.relatorio || "—"}</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                {os.depois?.fotos?.map((foto: string, i: number) => (
+                  <img
+                    key={i}
+                    src={`data:image/jpeg;base64,${foto}`}
+                    className="h-32 w-full object-cover rounded"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= AÇÕES (SÓ SE NÃO CONCLUÍDA) ================= */}
+        {!isConcluida && (
+          <div className="flex flex-col gap-4">
+            <button
+              onClick={() => irParaEtapa("antes")}
+              className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded"
+            >
+              Ir para ANTES
+            </button>
+
+            <button
+              onClick={() => irParaEtapa("depois")}
+              disabled={!podeIrDepois}
+              className={`py-3 rounded text-white ${
+                podeIrDepois
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-gray-400 cursor-not-allowed"
+              }`}
+            >
+              Ir para DEPOIS
+            </button>
+
+            {!podeIrDepois && (
+              <p className="text-sm text-gray-500 text-center">
+                ⚠️ Finalize o ANTES para liberar o DEPOIS
+              </p>
+            )}
+          </div>
+        )}
 
       </div>
     </div>
