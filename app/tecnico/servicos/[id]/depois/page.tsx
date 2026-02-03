@@ -35,9 +35,9 @@ export default function DepoisPage() {
 
       const data = await res.json();
 
-      // 🚫 SÓ ENTRA NO DEPOIS SE O ANTES JÁ FOI FEITO
+      // 🚫 se OS não estiver em andamento, volta
       if (data.status !== "em_andamento") {
-        router.replace(`/tecnico/servicos/${id}/antes`);
+        router.replace(`/tecnico/servicos/${id}`);
         return;
       }
 
@@ -49,9 +49,12 @@ export default function DepoisPage() {
     }
   }
 
+  /* ========= FOTOS (CORRIGIDO) ========= */
   function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
-    setFotos(Array.from(e.target.files));
+
+    // 🔥 agora adiciona sem sobrescrever
+    setFotos((prev) => [...prev, ...Array.from(e.target.files!)]);
   }
 
   function removerFoto(index: number) {
@@ -108,8 +111,9 @@ export default function DepoisPage() {
           onChange={(e) => setObservacao(e.target.value)}
         />
 
+        {/* BOTÃO DE FOTOS */}
         <label className="flex items-center gap-2 cursor-pointer bg-gray-100 p-3 rounded">
-          📷 <span>Adicione suas fotos</span>
+          📷 <span>Adicionar fotos</span>
           <input
             type="file"
             accept="image/*"
@@ -119,6 +123,7 @@ export default function DepoisPage() {
           />
         </label>
 
+        {/* PREVIEW */}
         {fotos.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
             {fotos.map((f, i) => (
@@ -128,6 +133,7 @@ export default function DepoisPage() {
                   className="h-32 w-full object-cover rounded"
                 />
                 <button
+                  type="button"
                   onClick={() => removerFoto(i)}
                   className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
                 >
