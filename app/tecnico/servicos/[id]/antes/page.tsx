@@ -48,9 +48,43 @@ export default function AntesPage() {
     }
   }
 
-  function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function comprimirImagem(file: File): Promise<File> {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          // Reduz tamanho se muito grande
+          if (width > 1200) {
+            height = (height * 1200) / width;
+            width = 1200;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob((blob) => {
+            resolve(new File([blob!], file.name, { type: "image/jpeg" }));
+          }, "image/jpeg", 0.7);
+        };
+      };
+    });
+  }
+
+  async function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
-    setFotos((prev) => [...prev, ...Array.from(e.target.files!)]);
+    const novasFotos = await Promise.all(
+      Array.from(e.target.files).map((f) => comprimirImagem(f))
+    );
+    setFotos((prev) => [...prev, ...novasFotos]);
   }
 
   function removerFoto(index: number) {
