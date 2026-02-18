@@ -74,7 +74,6 @@ export default function NovaOSPage() {
         }),
       });
 
-      // 🔥 PREPARA WHATSAPP PARA A PRÓXIMA TELA
       if (tecnicoSelecionado?.telefone && res?.osNumero) {
         localStorage.setItem(
           "whatsapp-pendente",
@@ -131,14 +130,22 @@ Acesse o sistema para mais detalhes.
         />
 
         {mostrarLista && clientesDB.length > 0 && (
-          <div className="border rounded mb-4">
+          <div className="border rounded mb-4 bg-white shadow-lg overflow-hidden">
             {clientesDB.map((c) => (
               <div
                 key={c._id}
                 onClick={() => selecionarClienteDB(c)}
-                className="p-2 cursor-pointer hover:bg-blue-100"
+                className="p-3 cursor-pointer hover:bg-blue-100 border-b last:border-b-0 transition-colors"
               >
-                {c.cliente} {c.subcliente && `- ${c.subcliente}`}
+                <span className="font-bold">{c.cliente}</span>
+                {/* Aqui está a modificação para mostrar unidade e marca se for DASA */}
+                {c.cliente?.toLowerCase() === "dasa" ? (
+                   <span className="text-sm text-gray-600 ml-2">
+                     - Unidade: <strong>{c.unidade}</strong> | Marca: <strong>{c.marca}</strong>
+                   </span>
+                ) : (
+                  c.subcliente && <span className="text-sm text-gray-600 ml-2">- {c.subcliente}</span>
+                )}
               </div>
             ))}
           </div>
@@ -155,8 +162,8 @@ Acesse o sistema para mais detalhes.
 
         {isDASA && (
           <>
-            <input className="border p-2 rounded w-full mb-3 bg-gray-100" value={unidade} readOnly />
-            <input className="border p-2 rounded w-full mb-3 bg-gray-100" value={marca} readOnly />
+            <input className="border p-2 rounded w-full mb-3 bg-gray-100" placeholder="Unidade" value={unidade} readOnly />
+            <input className="border p-2 rounded w-full mb-3 bg-gray-100" placeholder="Marca" value={marca} readOnly />
           </>
         )}
 
@@ -177,7 +184,7 @@ Acesse o sistema para mais detalhes.
         <button
           onClick={salvarOS}
           disabled={loading}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg w-full"
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg w-full font-bold"
         >
           {loading ? "Salvando..." : "Salvar OS"}
         </button>
