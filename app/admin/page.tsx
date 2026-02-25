@@ -26,12 +26,36 @@ export default function AdminDashboard() {
   ===================================================== */
   useEffect(() => {
     carregarOS();
+
+    // Recarrega quando o usuário volta para a aba/janela.
+    const onFocus = () => carregarOS();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") carregarOS();
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
  async function carregarOS() {
   try {
-    const data = await apiFetch("/projects/admin/all");
-    setOsList(data);
+    // `limit` ajuda quando o backend pagina por padrão.
+    const data = await apiFetch("/projects/admin/all?limit=1000", {
+      cache: "no-store",
+    });
+    const lista = Array.isArray(data)
+      ? data
+      : Array.isArray((data as any)?.data)
+      ? (data as any).data
+      : Array.isArray((data as any)?.items)
+      ? (data as any).items
+      : [];
+    setOsList(lista);
 
     // 🔥 ABRE WHATSAPP SÓ DEPOIS QUE CARREGAR
     const pendente = localStorage.getItem("whatsapp-pendente");
