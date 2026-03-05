@@ -62,14 +62,14 @@ export default function NovoClientePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 text-black">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6">
+    <div className="min-h-screen bg-[#f3f8ff] flex items-center justify-center p-4 text-slate-900">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6 border border-blue-100">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold">Novo Cliente</h1>
 
           <button
             onClick={() => router.back()}
-            className="bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded-lg"
+            className="border border-blue-200 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-blue-700 font-semibold"
           >
             Voltar
           </button>
@@ -123,7 +123,7 @@ export default function NovoClientePage() {
         <button
           onClick={salvarCliente}
           disabled={loading}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg"
+          className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-3 rounded-lg"
         >
           {loading ? "Salvando..." : "Salvar Cliente"}
         </button>

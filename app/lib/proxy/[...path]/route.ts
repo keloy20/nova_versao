@@ -1,24 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_URL = "https://gerenciador-de-os.onrender.com";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.VITE_API_URL ||
+  "http://127.0.0.1:3001";
 
-export async function GET(req: NextRequest, { params }: any) {
+type ProxyContext = {
+  params: {
+    path: string[];
+  };
+};
+
+export async function GET(req: NextRequest, { params }: ProxyContext) {
   return forward(req, params);
 }
 
-export async function POST(req: NextRequest, { params }: any) {
+export async function POST(req: NextRequest, { params }: ProxyContext) {
   return forward(req, params);
 }
 
-export async function PUT(req: NextRequest, { params }: any) {
+export async function PUT(req: NextRequest, { params }: ProxyContext) {
   return forward(req, params);
 }
 
-export async function DELETE(req: NextRequest, { params }: any) {
+export async function DELETE(req: NextRequest, { params }: ProxyContext) {
   return forward(req, params);
 }
 
-async function forward(req: NextRequest, params: any) {
+async function forward(req: NextRequest, params: ProxyContext["params"]) {
   const token = req.headers.get("authorization");
   const path = params.path.join("/");
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -15,6 +15,7 @@ export default function EditarTecnicoPage() {
 
   useEffect(() => {
     carregarTecnico();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarTecnico() {
@@ -23,8 +24,8 @@ export default function EditarTecnicoPage() {
       setNome(data.nome);
       setEmail(data.email);
       setTelefone(data.telefone || "");
-    } catch (err: any) {
-      alert("Erro ao carregar técnico: " + err.message);
+    } catch (err: unknown) {
+      alert("Erro ao carregar tecnico: " + (err instanceof Error ? err.message : "erro desconhecido"));
     } finally {
       setLoading(false);
     }
@@ -37,54 +38,57 @@ export default function EditarTecnicoPage() {
         body: JSON.stringify({ nome, email, telefone }),
       });
 
-      alert("Técnico atualizado com sucesso");
+      alert("Tecnico atualizado com sucesso");
       router.push("/admin/tecnicos");
-    } catch (err: any) {
-      alert("Erro ao salvar: " + err.message);
+    } catch (err: unknown) {
+      alert("Erro ao salvar: " + (err instanceof Error ? err.message : "erro desconhecido"));
     }
   }
 
   if (loading) return <div className="p-6">Carregando...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-md mx-auto bg-white p-6 rounded-xl shadow">
-        <h1 className="text-2xl font-bold mb-4 text-black">
-          Editar Técnico
-        </h1>
+    <div className="min-h-screen bg-[#f3f8ff] p-6">
+      <div className="mx-auto max-w-md rounded-xl border border-blue-100 bg-white p-6 shadow">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold text-slate-900">Editar Tecnico</h1>
+          <button
+            onClick={() => router.back()}
+            className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-700 hover:bg-blue-100"
+          >
+            Voltar
+          </button>
+        </div>
 
         <input
-          className="border p-2 rounded w-full mb-3"
+          className="mb-3 w-full rounded border p-2"
           placeholder="Nome"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
         />
 
         <input
-          className="border p-2 rounded w-full mb-3"
+          className="mb-3 w-full rounded border p-2"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
 
         <input
-          className="border p-2 rounded w-full mb-4"
+          className="mb-4 w-full rounded border p-2"
           placeholder="Telefone"
           value={telefone}
           onChange={(e) => setTelefone(e.target.value)}
         />
 
         <div className="flex gap-2">
-          <button
-            onClick={salvar}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-          >
+          <button onClick={salvar} className="rounded bg-blue-700 px-4 py-2 text-white hover:bg-blue-800">
             Salvar
           </button>
 
           <button
             onClick={() => router.push("/admin/tecnicos")}
-            className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
+            className="rounded bg-slate-500 px-4 py-2 text-white hover:bg-slate-600"
           >
             Cancelar
           </button>

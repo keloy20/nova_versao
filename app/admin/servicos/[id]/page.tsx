@@ -1,30 +1,122 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { apiFetch } from "@/app/lib/api";
-import jsPDF from "jspdf";
+import { API_URL, apiFetch } from "@/app/lib/api";
+import { formatDate, formatDuration, REPORT_CHANNELS, statusBadgeClass, statusLabel, normalizeStatus, STATUS } from "@/app/lib/os";
+
+type OSDetalhe = {
+  _id?: string;
+  osNumero?: string;
+  status?: string;
+  cliente?: string;
+  subcliente?: string;
+  Subcliente?: string;
+  subgrupo?: string;
+  solicitante_nome?: string;
+  tipo_manutencao?: string;
+  orcamento_previsto?: string;
+  equipamento_nome?: string;
+  equipamento_fabricante?: string;
+  equipamento_modelo?: string;
+  equipamento_numero_serie?: string;
+  equipamento_patrimonio?: string;
+  equipamento_especificacoes?: string;
+  endereco?: string;
+  email?: string;
+  telefone?: string;
+  tecnico?: { nome?: string };
+  createdAt?: string;
+  data_abertura?: string;
+  data_inicio_atendimento?: string;
+  data_pausa_atendimento?: string;
+  data_retomada_atendimento?: string;
+  data_inicio_deslocamento?: string;
+  data_fim_deslocamento?: string;
+  deslocamento_segundos?: number;
+  data_finalizacao_tecnico?: string;
+  data_validacao_admin?: string;
+  assinatura_tecnico?: string;
+  assinatura_cliente?: string;
+  cliente_nome?: string;
+  cliente_funcao?: string;
+  cliente_nao_assinou?: boolean;
+  motivo_nao_assinou?: string;
+  detalhamento?: string;
+  prioridade?: string;
+  started_at?: string;
+  finished_at?: string;
+  created_at?: string;
+  botao_gps_endereco?: string;
+  botao_ligar_telefone?: string;
+  antes?: HistoricoBloco;
+  depois?: HistoricoBloco;
+  materiais_solicitados?: MaterialSolicitado[];
+};
+
+type HistoricoBloco = {
+  relatorio?: string;
+  observacao?: string;
+  fotos?: string[];
+};
+
+type TimerData = {
+  active_seconds?: number;
+  pause_seconds?: number;
+  pause_count?: number;
+  started_at?: string;
+  finished_at?: string;
+};
+
+type MaterialSolicitado = {
+  nome?: string;
+  fabricante?: string;
+  modelo?: string;
+  quantidade?: number;
+  unidade?: string;
+  observacao?: string;
+};
 
 export default function DetalheOSPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-  const [os, setOs] = useState<any>(null);
+  const [os, setOs] = useState<OSDetalhe | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [timer, setTimer] = useState<TimerData | null>(null);
+  const [events, setEvents] = useState<Array<{ _id: string; old_status?: string; new_status?: string; createdAt?: string }>>([]);
+  const [canalEnvio, setCanalEnvio] = useState<(typeof REPORT_CHANNELS)[number]>("EMAIL");
+  const [deliveryEmail, setDeliveryEmail] = useState("");
+  const [deliveryPhone, setDeliveryPhone] = useState("");
 
   useEffect(() => {
     carregarOS();
     setUserRole(localStorage.getItem("role"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarOS() {
     try {
       const data = await apiFetch(`/projects/admin/view/${id}`);
-      setOs(data);
-    } catch (err: any) {
-      alert("Erro ao carregar OS: " + err.message);
+      setOs(data as OSDetalhe);
+      setDeliveryEmail(String((data as OSDetalhe)?.email || ""));
+      setDeliveryPhone(String((data as OSDetalhe)?.telefone || ""));
+      try {
+        const timerData = await apiFetch(`/os/${id}/timer`);
+        setTimer(timerData as TimerData);
+      } catch {
+        setTimer(null);
+      }
+      try {
+        const eventsData = await apiFetch(`/os/${id}/events`);
+        setEvents(Array.isArray(eventsData) ? eventsData : []);
+      } catch {
+        setEvents([]);
+      }
+    } catch (err: unknown) {
+      alert("Erro ao carregar OS: " + (err instanceof Error ? err.message : "erro desconhecido"));
     } finally {
       setLoading(false);
     }
@@ -36,293 +128,298 @@ export default function DetalheOSPage() {
 
     try {
       await apiFetch(`/projects/admin/cancelar/${id}`, { method: "PUT" });
-      alert("OS cancelada com sucesso!");
       await carregarOS();
-    } catch (err: any) {
-      alert("Erro ao cancelar: " + err.message);
+    } catch (err: unknown) {
+      alert("Erro ao cancelar: " + (err instanceof Error ? err.message : "erro desconhecido"));
     }
   }
 
   async function excluirOS() {
-    const ok = confirm(
-      "⚠️ ATENÇÃO!\n\nEssa ação NÃO pode ser desfeita.\nDeseja excluir esta OS definitivamente?"
-    );
+    const ok = confirm("A exclusão é definitiva. Deseja continuar?");
     if (!ok) return;
 
     try {
       await apiFetch(`/projects/admin/delete/${id}`, { method: "DELETE" });
-      alert("OS excluída com sucesso!");
       router.push("/admin");
-    } catch (err: any) {
-      alert("Erro ao excluir OS: " + err.message);
+    } catch (err: unknown) {
+      alert("Erro ao excluir OS: " + (err instanceof Error ? err.message : "erro desconhecido"));
     }
   }
 
-  /* =====================================================
-     PDF — 2 PÁGINAS FIXAS (ANTES / DEPOIS)
-  ===================================================== */
-function gerarPDF() {
-  if (!os) return;
-
-  const doc = new jsPDF("p", "mm", "a4");
-  const pageWidth = 210;
-  const margin = 15;
-
-  const imgW = 80;
-  const imgH = 55;
-  const gap = 5;
-
-  function titulo(txt: string, y: number) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(txt, margin, y);
-    doc.setFont("helvetica", "normal");
+  async function validarOS() {
+    try {
+      await apiFetch(`/os/${id}/validate`, {
+        method: "POST",
+        body: JSON.stringify({
+          channel: canalEnvio,
+          delivery_email: deliveryEmail,
+          delivery_phone_e164: deliveryPhone,
+        }),
+      });
+      alert("OS validada pelo admin");
+      await carregarOS();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao validar OS");
+    }
   }
 
-  function texto(txt: string, y: number) {
-    doc.setFontSize(10);
-    const linhas = doc.splitTextToSize(
-      txt || "-",
-      pageWidth - margin * 2
-    );
-    doc.text(linhas, margin, y);
-    return y + linhas.length * 5 + 3;
+  async function reabrirOS() {
+    try {
+      await apiFetch(`/os/${id}/reopen`, { method: "POST" });
+      alert("OS reaberta com sucesso");
+      await carregarOS();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao reabrir OS");
+    }
   }
 
-  function fotosGrid(fotos: string[], startY: number) {
-    const baseX = margin;
-    const pos = [
-      { x: baseX, y: startY },
-      { x: baseX + imgW + gap, y: startY },
-      { x: baseX, y: startY + imgH + gap },
-      { x: baseX + imgW + gap, y: startY + imgH + gap },
-    ];
+  async function gerarPDF() {
+    if (!os) return;
 
-    fotos.slice(0, 4).forEach((foto, i) => {
-      doc.addImage(
-        `data:image/jpeg;base64,${foto}`,
-        "JPEG",
-        pos[i].x,
-        pos[i].y,
-        imgW,
-        imgH
-      );
-    });
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/os/${id}/report?variant=client&force=true`, {
+        method: "GET",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        let message = "Erro ao gerar PDF";
+        try {
+          const data = await res.json();
+          message = data.error || data.message || message;
+        } catch {
+          const text = await res.text();
+          if (text) message = text;
+        }
+        throw new Error(message);
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `RELATORIO-OS-${os.osNumero || id}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao baixar PDF");
+    }
   }
 
-  /* ================= PÁGINA 1 — ANTES ================= */
-  let y = margin;
+  if (loading) return <div className="p-6 text-center">Carregando...</div>;
+  if (!os) return <div className="p-6 text-center text-rose-700">OS não encontrada</div>;
 
-  // 🔹 LOGO SERTECH (CANTO SUPERIOR DIREITO)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(31, 79, 163); // azul #1f4fa3
-  doc.text("SERTECH", pageWidth - margin, y, { align: "right" });
-
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    "Serviços tecnológicos",
-    pageWidth - margin,
-    y + 5,
-    { align: "right" }
-  );
-
-  doc.setTextColor(0, 0, 0); // volta para preto
-  y += 12;
-
-  doc.setFontSize(16);
-  doc.text("ORDEM DE SERVIÇO", pageWidth / 2, y, { align: "center" });
-  y += 10;
-
-  y = texto(`OS: ${os.osNumero}`, y);
-  y = texto(`Status: ${os.status}`, y);
-  y = texto(`Cliente: ${os.cliente}`, y);
-
-  if (os.cliente === "DASA") {
-    y = texto(`Unidade: ${os.unidade || "-"}`, y);
-    y = texto(`Marca: ${os.marca || "-"}`, y);
-  } else {
-    y = texto(
-      `Subcliente: ${os.subcliente || os.Subcliente || os.subgrupo || "-"}`,
-      y
-    );
-  }
-
-  y = texto(`Endereço: ${os.endereco || "-"}`, y);
-  y = texto(`Telefone: ${os.telefone || "-"}`, y);
-  y = texto(`Técnico: ${os.tecnico?.nome || "-"}`, y);
-
-  y += 5;
-  titulo("RELATÓRIO INICIAL (ANTES)", y);
-  y += 6;
-  y = texto(os.antes?.relatorio, y);
-
-  titulo("OBSERVAÇÃO INICIAL (ANTES)", y);
-  y += 6;
-  y = texto(os.antes?.observacao, y);
-
-  titulo("FOTOS – ANTES", y);
-  y += 6;
-  fotosGrid(os.antes?.fotos || [], y);
-
-  /* ================= PÁGINA 2 — DEPOIS ================= */
-  doc.addPage();
-  y = margin;
-
-  // 🔹 LOGO SERTECH (PÁGINA 2)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(31, 79, 163);
-  doc.text("SERTECH", pageWidth - margin, y, { align: "right" });
-
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    "Automação Eletrônica",
-    pageWidth - margin,
-    y + 5,
-    { align: "right" }
-  );
-
-  doc.setTextColor(0, 0, 0);
-  y += 12;
-
-  titulo("RELATÓRIO FINAL (DEPOIS)", y);
-  y += 6;
-  y = texto(os.depois?.relatorio, y);
-
-  titulo("OBSERVAÇÃO FINAL (DEPOIS)", y);
-  y += 6;
-  y = texto(os.depois?.observacao, y);
-
-  titulo("FOTOS – DEPOIS", y);
-  y += 6;
-  fotosGrid(os.depois?.fotos || [], y);
-
-  doc.save(`OS-${os.osNumero}.pdf`);
-}
-
-
-
-  /* ===================================================== */
-
-  if (loading) {
-    return <div className="p-6 text-center">Carregando...</div>;
-  }
-
-  if (!os) {
-    return <div className="p-6 text-center text-red-600">OS não encontrada</div>;
-  }
-
-  const statusColor =
-    os.status === "cancelado"
-      ? "bg-red-100 text-red-700"
-      : os.status === "concluido"
-      ? "bg-green-100 text-green-700"
-      : os.status === "em_andamento"
-      ? "bg-blue-100 text-blue-700"
-      : "bg-yellow-100 text-yellow-700";
+  const status = normalizeStatus(os.status);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 flex justify-center">
-      <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6">
-
-        {/* TOPO */}
-        <div className="flex flex-wrap justify-between gap-2 mb-6">
-          <h1 className="text-2xl font-bold">Detalhes da OS</h1>
-
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={gerarPDF}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
-            >
-              Gerar PDF
-            </button>
-
-            {userRole === "admin" && (
-              <>
-                <button
-                  onClick={() => router.push(`/admin/servicos/${id}/editar`)}
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm"
-                >
-                  ✏️ Alterar
-                </button>
-
-                <button
-                  onClick={cancelarOS}
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm"
-                >
-                  ❌ Cancelar
-                </button>
-
-                <button
-                  onClick={excluirOS}
-                  className="bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-lg text-sm"
-                >
-                  🗑️ Excluir OS
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={() => router.back()}
-              className="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded-lg text-sm"
-            >
-              Voltar
-            </button>
+    <div className="min-h-screen p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h1 className="text-2xl font-extrabold">Detalhes da OS</h1>
+            <p className="text-sm text-slate-600">{os.osNumero}</p>
           </div>
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusBadgeClass(status)}`}>
+            {statusLabel(status)}
+          </span>
         </div>
 
-        {/* DADOS */}
-        <div className="space-y-4 text-sm">
-          <Info label="Número da OS" value={os.osNumero} />
+        <div className="mb-5 flex flex-wrap gap-2">
+          <button onClick={gerarPDF} className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-bold text-white hover:bg-sky-800">Gerar PDF</button>
 
-          <div>
-            <p className="text-xs font-semibold text-gray-600">Status</p>
-            <span className={`inline-block px-3 py-1 rounded-full ${statusColor}`}>
-              {os.status}
-            </span>
-          </div>
-
-          <Info label="Cliente" value={os.cliente} />
-
-          {os.cliente === "DASA" ? (
-            <>
-              <Info label="Unidade" value={os.unidade} />
-              <Info label="Marca" value={os.marca} />
-            </>
-          ) : (
-            <Info
-              label="Subcliente"
-              value={os.subcliente || os.Subcliente || os.subgrupo}
-            />
+          {userRole === "admin" && status === STATUS.FINALIZADA_PELO_TECNICO && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                placeholder="Email de envio"
+                value={deliveryEmail}
+                onChange={(e) => setDeliveryEmail(e.target.value)}
+              />
+              <input
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                placeholder="Telefone com DDD"
+                value={deliveryPhone}
+                onChange={(e) => setDeliveryPhone(e.target.value)}
+              />
+              <select
+                value={canalEnvio}
+                onChange={(e) => setCanalEnvio(e.target.value as (typeof REPORT_CHANNELS)[number])}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+              >
+                {REPORT_CHANNELS.map((canal) => (
+                  <option key={canal} value={canal}>
+                    {canal}
+                  </option>
+                ))}
+              </select>
+              <button onClick={validarOS} className="rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white hover:bg-teal-800">Validar e Finalizar</button>
+            </div>
+          )}
+          {userRole === "admin" && [STATUS.FINALIZADA_PELO_TECNICO, STATUS.VALIDADA_PELO_ADMIN, STATUS.CANCELADA].includes(status as typeof STATUS.FINALIZADA_PELO_TECNICO | typeof STATUS.VALIDADA_PELO_ADMIN | typeof STATUS.CANCELADA) && (
+            <button onClick={reabrirOS} className="rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-800">Reabrir OS</button>
           )}
 
+          {userRole === "admin" && (
+            <>
+              <button onClick={() => router.push(`/admin/servicos/${id}/editar`)} className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white hover:bg-amber-600">Editar</button>
+              <button onClick={cancelarOS} className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700">Cancelar</button>
+              <button onClick={excluirOS} className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white hover:bg-rose-800">Excluir</button>
+            </>
+          )}
+
+          <button onClick={() => router.back()} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">Voltar</button>
+        </div>
+
+        <div className="grid gap-4 text-sm text-slate-700 sm:grid-cols-2">
+          <Info label="Cliente" value={os.cliente} />
+          <Info label="Subcliente" value={os.subcliente || os.Subcliente || os.subgrupo} />
+          <Info label="Solicitante" value={os.solicitante_nome} />
+          <Info label="Tipo manutenção" value={os.tipo_manutencao} />
+          <Info label="Prioridade" value={os.prioridade} />
+          <Info label="Equipamento" value={os.equipamento_nome} />
+          <Info label="Fabricante" value={os.equipamento_fabricante} />
+          <Info label="Modelo" value={os.equipamento_modelo} />
+          <Info label="Número de série" value={os.equipamento_numero_serie} />
+          <Info label="Patrimônio" value={os.equipamento_patrimonio} />
+          <Info label="Orçamento previsto" value={os.orcamento_previsto} />
           <Info label="Endereço" value={os.endereco} />
+          <Info label="Email" value={os.email} />
           <Info label="Telefone" value={os.telefone} />
           <Info label="Técnico" value={os.tecnico?.nome} />
-
-          <div className="bg-blue-50 p-3 rounded-lg border">
-            <p className="text-xs font-semibold text-blue-700 mb-1">
-              Detalhamento do Serviço
-            </p>
-            <p className="whitespace-pre-line">
-              {os.detalhamento || "-"}
-            </p>
-          </div>
+          <Info label="Abertura" value={formatDate(os.data_abertura || os.createdAt)} />
+          <Info label="Início atendimento" value={formatDate(os.data_inicio_atendimento)} />
+          <Info label="Início deslocamento" value={formatDate(os.data_inicio_deslocamento)} />
+          <Info label="Fim deslocamento" value={formatDate(os.data_fim_deslocamento)} />
+          <Info label="Tempo deslocamento" value={formatDuration(os.deslocamento_segundos)} />
+          <Info label="Pausa" value={formatDate(os.data_pausa_atendimento)} />
+          <Info label="Retomada" value={formatDate(os.data_retomada_atendimento)} />
+          <Info label="Finalização técnico" value={formatDate(os.data_finalizacao_tecnico)} />
+          <Info label="Validação admin" value={formatDate(os.data_validacao_admin)} />
+          <Info label="Assinatura técnico" value={os.assinatura_tecnico} />
+          <Info label="Assinatura cliente" value={os.assinatura_cliente} />
+          <Info label="Cliente nome" value={os.cliente_nome} />
+          <Info label="Cliente função" value={os.cliente_funcao} />
+          <Info label="Cliente não assinou" value={os.cliente_nao_assinou ? "Sim" : "Não"} />
+          <Info label="Motivo não assinou" value={os.motivo_nao_assinou} />
         </div>
+
+        {(os.botao_gps_endereco || os.botao_ligar_telefone) && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {os.botao_gps_endereco && (
+              <a href={os.botao_gps_endereco} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
+                Abrir GPS
+              </a>
+            )}
+            {os.botao_ligar_telefone && (
+              <a href={os.botao_ligar_telefone} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
+                Ligar
+              </a>
+            )}
+          </div>
+        )}
+
+        {timer && (
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            <p><b>Timer ativo:</b> {formatDuration(timer.active_seconds)}</p>
+            <p><b>Tempo em pausa:</b> {formatDuration(timer.pause_seconds)}</p>
+            <p><b>Qtd pausas:</b> {timer.pause_count || 0}</p>
+          </div>
+        )}
+
+        {events.length > 0 && (
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-2 text-sm font-semibold text-slate-700">Eventos</p>
+            <div className="space-y-2 text-xs text-slate-600">
+              {events.map((ev) => (
+                <div key={ev._id}>
+                  {ev.old_status || "-"} {'->'} {ev.new_status || "-"} ({formatDate(ev.createdAt)})
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="mb-1 text-sm font-semibold text-slate-700">Detalhamento</p>
+          <p className="whitespace-pre-line text-sm text-slate-700">{os.detalhamento || "-"}</p>
+        </div>
+
+        {os.equipamento_especificacoes && (
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-1 text-sm font-semibold text-slate-700">Especificações técnicas</p>
+            <p className="whitespace-pre-line text-sm text-slate-700">{os.equipamento_especificacoes}</p>
+          </div>
+        )}
+
+        {Array.isArray(os.materiais_solicitados) && os.materiais_solicitados.length > 0 && (
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-2 text-sm font-semibold text-slate-700">Materiais necessários</p>
+            <div className="space-y-2">
+              {os.materiais_solicitados.map((m, i) => (
+                <div key={`${m.nome || "material"}-${i}`} className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                  <p className="font-semibold text-slate-800">{m.nome || "-"}</p>
+                  <p>
+                    {(m.quantidade ?? 0)} {m.unidade || "un"}
+                    {m.fabricante ? ` | ${m.fabricante}` : ""}
+                    {m.modelo ? ` | ${m.modelo}` : ""}
+                  </p>
+                  {m.observacao ? <p>{m.observacao}</p> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <PreviewBloco title="Preview ANTES" bloco={os.antes} />
+        <PreviewBloco title="Preview DEPOIS" bloco={os.depois} />
       </div>
     </div>
   );
 }
 
-function Info({ label, value }: any) {
-  if (!value) return null;
+function PreviewBloco({ title, bloco }: { title: string; bloco?: HistoricoBloco }) {
+  if (!bloco) return null;
+  const fotos = bloco.fotos || [];
+  const semConteudo = !bloco.relatorio && !bloco.observacao && fotos.length === 0;
+  if (semConteudo) return null;
+
+  return (
+    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="mb-2 text-sm font-semibold text-slate-700">{title}</p>
+      {fotos.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {fotos.map((foto, i) => (
+            <img
+              key={`${title}-${i}`}
+              src={`data:image/jpeg;base64,${foto}`}
+              alt={`${title} foto ${i + 1}`}
+              className="h-28 w-full rounded-lg object-cover"
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-3 grid gap-2 text-sm text-slate-700">
+        <p>
+          <b>Parecer:</b> {bloco.relatorio || "-"}
+        </p>
+        <p>
+          <b>Observação:</b> {bloco.observacao || "-"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
-      <p className="text-xs font-semibold text-gray-600">{label}</p>
-      <p className="font-bold">{value}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="font-semibold text-slate-800">{value || "-"}</p>
     </div>
   );
 }

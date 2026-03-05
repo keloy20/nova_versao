@@ -32,16 +32,16 @@ export default function NovoTecnicoPage() {
       alert("Técnico cadastrado com sucesso!");
       router.push("/admin/tecnicos");
 
-    } catch (err: any) {
-      alert("Erro: " + err.message);
+    } catch (err: unknown) {
+      alert("Erro: " + (err instanceof Error ? err.message : "erro desconhecido"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 text-black">
-      <div className="max-w-md mx-auto bg-white p-6 rounded-xl shadow">
+    <div className="min-h-screen bg-[#f3f8ff] p-6 text-slate-900">
+      <div className="max-w-md mx-auto bg-white p-6 rounded-xl shadow border border-blue-100">
 
         <h1 className="text-2xl font-bold mb-4">Cadastrar Técnico</h1>
 
@@ -95,7 +95,7 @@ export default function NovoTecnicoPage() {
             <button
               type="button"
               onClick={() => router.push("/admin/tecnicos")}
-              className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
+              className="bg-slate-500 hover:bg-slate-600 text-white px-4 py-2 rounded"
             >
               Voltar
             </button>

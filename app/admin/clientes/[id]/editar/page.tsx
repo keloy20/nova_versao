@@ -65,9 +65,17 @@ export default function EditarClientePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-xl mx-auto bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-4 text-black">Editar Cliente</h1>
+    <div className="min-h-screen bg-[#f3f8ff] p-6">
+      <div className="max-w-xl mx-auto bg-white rounded-xl shadow p-6 border border-blue-100">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold text-slate-900">Editar Cliente</h1>
+          <button
+            onClick={() => router.back()}
+            className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-700 hover:bg-blue-100"
+          >
+            Voltar
+          </button>
+        </div>
 
         <input className="border p-2 rounded w-full mb-3" placeholder="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} />
 
@@ -83,14 +91,14 @@ export default function EditarClientePage() {
           <button
             onClick={salvar}
             disabled={salvando}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+            className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded"
           >
             {salvando ? "Salvando..." : "Salvar"}
           </button>
 
           <button
             onClick={() => router.push("/admin/clientes")}
-            className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
+            className="bg-slate-500 hover:bg-slate-600 text-white px-4 py-2 rounded"
           >
             Cancelar
           </button>

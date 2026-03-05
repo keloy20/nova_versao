@@ -1,42 +1,45 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { apiFetch } from "@/app/lib/api";
+import { MOTIVOS_NAO_ASSINOU, normalizeStatus, STATUS } from "@/app/lib/os";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://gerenciador-de-os.onrender.com";
+type OSTecnico = {
+  osNumero?: string;
+  status?: string;
+};
 
 export default function DepoisPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const [os, setOs] = useState<any>(null);
+  const [os, setOs] = useState<OSTecnico | null>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [fotos, setFotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
+  const [assinaturaTecnico, setAssinaturaTecnico] = useState("");
+  const [assinaturaCliente, setAssinaturaCliente] = useState("");
+  const [clienteNome, setClienteNome] = useState("");
+  const [clienteFuncao, setClienteFuncao] = useState("");
+  const [clienteNaoAssinou, setClienteNaoAssinou] = useState(false);
+  const [motivoNaoAssinou, setMotivoNaoAssinou] = useState("");
+
   useEffect(() => {
     carregarOS();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarOS() {
     try {
-      const token = localStorage.getItem("token");
+      const data = (await apiFetch(`/projects/tecnico/view/${id}`)) as OSTecnico;
+      const status = normalizeStatus(data.status);
 
-      const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error();
-
-      const data = await res.json();
-
-      // 🚫 se OS não estiver em andamento, volta
-      if (data.status !== "em_andamento") {
+      if (status !== STATUS.EM_ATENDIMENTO && status !== STATUS.PAUSADA) {
         router.replace(`/tecnico/servicos/${id}`);
         return;
       }
@@ -61,7 +64,6 @@ export default function DepoisPage() {
           let width = img.width;
           let height = img.height;
 
-          // Reduz tamanho se muito grande
           if (width > 1200) {
             height = (height * 1200) / width;
             width = 1200;
@@ -82,9 +84,7 @@ export default function DepoisPage() {
 
   async function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
-    const novasFotos = await Promise.all(
-      Array.from(e.target.files).map((f) => comprimirImagem(f))
-    );
+    const novasFotos = await Promise.all(Array.from(e.target.files).map((f) => comprimirImagem(f)));
     setFotos((prev) => [...prev, ...novasFotos]);
   }
 
@@ -92,27 +92,61 @@ export default function DepoisPage() {
     setFotos((prev) => prev.filter((_, i) => i !== index));
   }
 
-  async function salvarDepois() {
+  function validarFinalizacao() {
+    if (!assinaturaTecnico.trim()) {
+      alert("Informe a assinatura do técnico");
+      return false;
+    }
+
+    if (clienteNaoAssinou) {
+      if (!clienteNome.trim()) {
+        alert("Informe o nome do cliente quando ele não assinar");
+        return false;
+      }
+      if (!motivoNaoAssinou) {
+        alert("Selecione o motivo de não assinatura");
+        return false;
+      }
+    } else if (!assinaturaCliente.trim()) {
+      alert("Informe a assinatura do cliente ou marque que ele não assinou");
+      return false;
+    }
+
+    return true;
+  }
+
+  async function salvarDepoisEFinalizar() {
+    if (!validarFinalizacao()) return;
+
     setSalvando(true);
 
     try {
-      const token = localStorage.getItem("token");
       const formData = new FormData();
-
       formData.append("relatorio", relatorio);
       formData.append("observacao", observacao);
       fotos.forEach((f) => formData.append("fotos", f));
 
-      await fetch(`${API_URL}/projects/tecnico/depois/${id}`, {
+      await apiFetch(`/projects/tecnico/depois/${id}`, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
         body: formData,
+      });
+
+      await apiFetch(`/os/${id}/finish`, {
+        method: "POST",
+        body: JSON.stringify({
+          tech_signature_url: assinaturaTecnico,
+          client_signature_url: clienteNaoAssinou ? null : assinaturaCliente,
+          client_signed_name: clienteNome || null,
+          client_signed_role: clienteFuncao || null,
+          client_did_not_sign: clienteNaoAssinou,
+          client_did_not_sign_reason: clienteNaoAssinou ? motivoNaoAssinou : null,
+        }),
       });
 
       alert("OS finalizada com sucesso!");
       router.push("/tecnico");
-    } catch {
-      alert("Erro ao salvar DEPOIS");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao finalizar OS");
     } finally {
       setSalvando(false);
     }
@@ -122,64 +156,43 @@ export default function DepoisPage() {
   if (!os) return <div className="p-6">OS não encontrada</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 text-black">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-6">
-          DEPOIS – {os.osNumero}
-        </h1>
-
-        <label className="font-medium block mb-1">Relatório final</label>
-        <textarea
-          className="border p-2 rounded w-full mb-4"
-          value={relatorio}
-          onChange={(e) => setRelatorio(e.target.value)}
-        />
-
-        <label className="font-medium block mb-1">Observações finais</label>
-        <textarea
-          className="border p-2 rounded w-full mb-4"
-          value={observacao}
-          onChange={(e) => setObservacao(e.target.value)}
-        />
-
-        {/* BOTÃO DE FOTOS */}
-        <label className="flex items-center gap-2 cursor-pointer bg-gray-100 p-3 rounded">
-          📷 <span>Adicionar fotos</span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={handleFotosChange}
-          />
-        </label>
-
-        {/* CONTADOR E VALIDAÇÃO */}
-        <div className="mt-2 text-sm">
-          <div className={fotos.length >= 1 && fotos.length <= 4 ? "text-green-600" : "text-red-600"}>
-            {fotos.length} / 4 foto{fotos.length !== 1 && "s"} selecionada{fotos.length !== 1 && "s"}
-          </div>
-          {fotos.length === 0 && (
-            <p className="text-red-600 font-semibold mt-1">⚠️ Obrigatório: mínimo 1 foto</p>
-          )}
-          {fotos.length > 4 && (
-            <p className="text-red-600 font-semibold mt-1">⚠️ Máximo: 4 fotos (remova {fotos.length - 4})</p>
-          )}
+    <div className="min-h-screen p-4 text-slate-900 sm:p-6">
+      <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <h1 className="text-2xl font-extrabold">DEPOIS e Finalização - {os.osNumero}</h1>
+          <button
+            type="button"
+            onClick={() => router.push(`/tecnico/servicos/${id}`)}
+            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+          >
+            Voltar
+          </button>
         </div>
 
-        {/* PREVIEW */}
+        <label className="mb-1 block text-sm font-semibold">Parecer final</label>
+        <textarea className="mb-4 w-full rounded-xl border border-slate-200 p-2.5" value={relatorio} onChange={(e) => setRelatorio(e.target.value)} />
+
+        <label className="mb-1 block text-sm font-semibold">Observações finais</label>
+        <textarea className="mb-4 w-full rounded-xl border border-slate-200 p-2.5" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+          Adicionar fotos (1 a 4)
+          <input type="file" accept="image/*" multiple hidden onChange={handleFotosChange} />
+        </label>
+
+        <p className={`mt-2 text-sm ${fotos.length >= 1 && fotos.length <= 4 ? "text-emerald-700" : "text-rose-700"}`}>
+          {fotos.length} / 4 foto{fotos.length !== 1 && "s"}
+        </p>
+
         {fotos.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {fotos.map((f, i) => (
               <div key={i} className="relative">
-                <img
-                  src={URL.createObjectURL(f)}
-                  className="h-32 w-full object-cover rounded"
-                />
+                <img src={URL.createObjectURL(f)} alt={`Preview DEPOIS ${i + 1}`} className="h-28 w-full rounded-lg object-cover" />
                 <button
                   type="button"
                   onClick={() => removerFoto(i)}
-                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
+                  className="absolute right-1 top-1 rounded bg-rose-600 px-2 text-xs font-bold text-white"
                 >
                   X
                 </button>
@@ -188,16 +201,80 @@ export default function DepoisPage() {
           </div>
         )}
 
+        <div className="mt-6 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-extrabold text-slate-800">Assinaturas da finalização</p>
+
+          <input
+            className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
+            placeholder="Assinatura técnico (nome completo)"
+            value={assinaturaTecnico}
+            onChange={(e) => setAssinaturaTecnico(e.target.value)}
+          />
+
+          <div className="flex items-center gap-2 text-sm">
+            <input
+              id="clienteNaoAssinou"
+              type="checkbox"
+              checked={clienteNaoAssinou}
+              onChange={(e) => setClienteNaoAssinou(e.target.checked)}
+            />
+            <label htmlFor="clienteNaoAssinou">Cliente não assinou</label>
+          </div>
+
+          {!clienteNaoAssinou && (
+            <input
+              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
+              placeholder="Assinatura cliente (nome completo)"
+              value={assinaturaCliente}
+              onChange={(e) => setAssinaturaCliente(e.target.value)}
+            />
+          )}
+
+          {clienteNaoAssinou && (
+            <>
+              <input
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
+                placeholder="Nome do cliente"
+                value={clienteNome}
+                onChange={(e) => setClienteNome(e.target.value)}
+              />
+
+              <input
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
+                placeholder="Função do cliente"
+                value={clienteFuncao}
+                onChange={(e) => setClienteFuncao(e.target.value)}
+              />
+
+              <select
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
+                value={motivoNaoAssinou}
+                onChange={(e) => setMotivoNaoAssinou(e.target.value)}
+              >
+                <option value="">Selecione o motivo</option>
+                {MOTIVOS_NAO_ASSINOU.map((motivo) => (
+                  <option key={motivo} value={motivo}>
+                    {motivo}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+        </div>
+
         <button
-          onClick={salvarDepois}
+          onClick={salvarDepoisEFinalizar}
           disabled={salvando || fotos.length < 1 || fotos.length > 4}
-          className={`mt-6 text-white w-full py-3 rounded ${
-            fotos.length >= 1 && fotos.length <= 4
-              ? "bg-green-600 hover:bg-green-700 cursor-pointer"
-              : "bg-gray-400 cursor-not-allowed"
-          }`}
+          className="mt-6 w-full rounded-xl bg-emerald-700 px-4 py-3 font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
-          {salvando ? "Salvando..." : fotos.length === 0 ? "Adicione pelo menos 1 foto" : fotos.length > 4 ? "Remova fotos extras" : "Finalizar OS"}
+          {salvando ? "Salvando..." : "Salvar DEPOIS e Finalizar OS"}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push(`/tecnico/servicos/${id}`)}
+          className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100"
+        >
+          Voltar para o serviço
         </button>
       </div>
     </div>

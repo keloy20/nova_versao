@@ -1,46 +1,79 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { apiFetch } from "@/app/lib/api";
+import { normalizeStatus, STATUS } from "@/app/lib/os";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://gerenciador-de-os.onrender.com";
+type OSTecnico = {
+  osNumero?: string;
+  status?: string;
+};
+
+type EquipamentoCatalogo = {
+  _id: string;
+  nome: string;
+  fabricante?: string;
+  modelo?: string;
+  estoque_qtd?: number;
+};
+
+type MaterialSolicitado = {
+  equipamento_catalogo_id?: string;
+  nome: string;
+  fabricante?: string;
+  modelo?: string;
+  quantidade: number;
+  unidade: string;
+  observacao?: string;
+};
 
 export default function AntesPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const [os, setOs] = useState<any>(null);
+  const [os, setOs] = useState<OSTecnico | null>(null);
   const [relatorio, setRelatorio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [fotos, setFotos] = useState<File[]>([]);
+  const [catalogo, setCatalogo] = useState<EquipamentoCatalogo[]>([]);
+  const [materialId, setMaterialId] = useState("");
+  const [materialNomeLivre, setMaterialNomeLivre] = useState("");
+  const [materialQuantidade, setMaterialQuantidade] = useState("1");
+  const [materialUnidade, setMaterialUnidade] = useState("un");
+  const [materialObs, setMaterialObs] = useState("");
+  const [materiais, setMateriais] = useState<MaterialSolicitado[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     carregarOS();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarOS() {
     try {
-      const token = localStorage.getItem("token");
+      const [osData, catalogoData] = await Promise.all([
+        apiFetch(`/projects/tecnico/view/${id}`),
+        apiFetch("/catalog/equipamentos").catch(() => [])
+      ]);
+      const data = osData as OSTecnico & { materiais_solicitados?: MaterialSolicitado[] };
+      const status = normalizeStatus(data.status);
 
-      const res = await fetch(`${API_URL}/projects/tecnico/view/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const bloqueada =
+        status === STATUS.FINALIZADA_PELO_TECNICO ||
+        status === STATUS.VALIDADA_PELO_ADMIN ||
+        status === STATUS.CANCELADA;
 
-      if (!res.ok) throw new Error();
-
-      const data = await res.json();
-
-      if (data.status === "concluido") {
-        router.replace("/tecnico");
+      if (bloqueada) {
+        router.replace(`/tecnico/servicos/${id}`);
         return;
       }
 
       setOs(data);
+      setMateriais(Array.isArray(data.materiais_solicitados) ? data.materiais_solicitados : []);
+      setCatalogo(Array.isArray(catalogoData) ? (catalogoData as EquipamentoCatalogo[]) : []);
     } catch {
       setOs(null);
     } finally {
@@ -60,7 +93,6 @@ export default function AntesPage() {
           let width = img.width;
           let height = img.height;
 
-          // Reduz tamanho se muito grande
           if (width > 1200) {
             height = (height * 1200) / width;
             width = 1200;
@@ -81,9 +113,7 @@ export default function AntesPage() {
 
   async function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
-    const novasFotos = await Promise.all(
-      Array.from(e.target.files).map((f) => comprimirImagem(f))
-    );
+    const novasFotos = await Promise.all(Array.from(e.target.files).map((f) => comprimirImagem(f)));
     setFotos((prev) => [...prev, ...novasFotos]);
   }
 
@@ -91,27 +121,57 @@ export default function AntesPage() {
     setFotos((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function adicionarMaterial() {
+    const selecionado = catalogo.find((item) => item._id === materialId);
+    const nome = (selecionado?.nome || materialNomeLivre).trim();
+    const quantidade = Math.max(0, Number(materialQuantidade) || 0);
+
+    if (!nome || quantidade <= 0) {
+      alert("Informe material e quantidade");
+      return;
+    }
+
+    const novo: MaterialSolicitado = {
+      equipamento_catalogo_id: selecionado?._id,
+      nome,
+      fabricante: selecionado?.fabricante || "",
+      modelo: selecionado?.modelo || "",
+      quantidade,
+      unidade: materialUnidade.trim() || "un",
+      observacao: materialObs.trim()
+    };
+    setMateriais((prev) => [...prev, novo]);
+    setMaterialId("");
+    setMaterialNomeLivre("");
+    setMaterialQuantidade("1");
+    setMaterialUnidade("un");
+    setMaterialObs("");
+  }
+
+  function removerMaterial(index: number) {
+    setMateriais((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  const materialSelecionado = catalogo.find((item) => item._id === materialId);
+
   async function salvarAntes() {
     setSalvando(true);
 
     try {
-      const token = localStorage.getItem("token");
       const formData = new FormData();
-
       formData.append("relatorio", relatorio);
       formData.append("observacao", observacao);
+      formData.append("materiais_solicitados", JSON.stringify(materiais));
       fotos.forEach((f) => formData.append("fotos", f));
 
-      await fetch(`${API_URL}/projects/tecnico/antes/${id}`, {
+      await apiFetch(`/projects/tecnico/antes/${id}`, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
-      localStorage.setItem(`os-step-${id}`, "depois");
       router.push(`/tecnico/servicos/${id}/depois`);
-    } catch {
-      alert("Erro ao salvar ANTES");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao salvar ANTES");
     } finally {
       setSalvando(false);
     }
@@ -121,64 +181,43 @@ export default function AntesPage() {
   if (!os) return <div className="p-6">OS não encontrada</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 text-black">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-6">
-          ANTES – {os.osNumero}
-        </h1>
-
-        <label className="font-medium block mb-1">Relatório inicial</label>
-        <textarea
-          className="border p-2 rounded w-full mb-4"
-          value={relatorio}
-          onChange={(e) => setRelatorio(e.target.value)}
-        />
-
-        <label className="font-medium block mb-1">Observações</label>
-        <textarea
-          className="border p-2 rounded w-full mb-4"
-          value={observacao}
-          onChange={(e) => setObservacao(e.target.value)}
-        />
-
-        {/* BOTÃO DE FOTO */}
-        <label className="flex items-center justify-center gap-2 cursor-pointer bg-gray-100 p-4 rounded border border-dashed border-gray-400 text-gray-600">
-          📷 <span>Fotos aqui (câmera ou galeria)</span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={handleFotosChange}
-          />
-        </label>
-
-        {/* CONTADOR E VALIDAÇÃO */}
-        <div className="mt-2 text-sm">
-          <div className={fotos.length >= 1 && fotos.length <= 4 ? "text-green-600" : "text-red-600"}>
-            {fotos.length} / 4 foto{fotos.length !== 1 && "s"} selecionada{fotos.length !== 1 && "s"}
-          </div>
-          {fotos.length === 0 && (
-            <p className="text-red-600 font-semibold mt-1">⚠️ Obrigatório: mínimo 1 foto</p>
-          )}
-          {fotos.length > 4 && (
-            <p className="text-red-600 font-semibold mt-1">⚠️ Máximo: 4 fotos (remova {fotos.length - 4})</p>
-          )}
+    <div className="min-h-screen p-4 text-slate-900 sm:p-6">
+      <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <h1 className="text-2xl font-extrabold">ANTES - {os.osNumero}</h1>
+          <button
+            type="button"
+            onClick={() => router.push(`/tecnico/servicos/${id}`)}
+            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+          >
+            Voltar
+          </button>
         </div>
 
-        {/* PREVIEW */}
+        <label className="mb-1 block text-sm font-semibold">Parecer inicial</label>
+        <textarea className="mb-4 w-full rounded-xl border border-slate-200 p-2.5" value={relatorio} onChange={(e) => setRelatorio(e.target.value)} />
+
+        <label className="mb-1 block text-sm font-semibold">Observações</label>
+        <textarea className="mb-4 w-full rounded-xl border border-slate-200 p-2.5" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+          Adicionar fotos (1 a 4)
+          <input type="file" accept="image/*" multiple hidden onChange={handleFotosChange} />
+        </label>
+
+        <p className={`mt-2 text-sm ${fotos.length >= 1 && fotos.length <= 4 ? "text-emerald-700" : "text-rose-700"}`}>
+          {fotos.length} / 4 foto{fotos.length !== 1 && "s"}
+        </p>
+
         {fotos.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {fotos.map((f, i) => (
               <div key={i} className="relative">
-                <img
-                  src={URL.createObjectURL(f)}
-                  className="h-32 w-full object-cover rounded"
-                />
+                <img src={URL.createObjectURL(f)} alt={`Preview ANTES ${i + 1}`} className="h-28 w-full rounded-lg object-cover" />
                 <button
                   type="button"
                   onClick={() => removerFoto(i)}
-                  className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 py-1 rounded"
+                  className="absolute right-1 top-1 rounded bg-rose-600 px-2 text-xs font-bold text-white"
                 >
                   X
                 </button>
@@ -187,16 +226,69 @@ export default function AntesPage() {
           </div>
         )}
 
+        <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="mb-3 text-sm font-extrabold text-slate-800">Materiais necessários</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <select className="rounded-xl border border-slate-200 bg-white px-3 py-2.5" value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
+              <option value="">Selecionar no catálogo</option>
+              {catalogo.map((item) => (
+                <option key={item._id} value={item._id}>
+                  {item.nome}
+                  {item.fabricante ? ` - ${item.fabricante}` : ""}
+                  {" | Est: "}
+                  {item.estoque_qtd ?? 0}
+                </option>
+              ))}
+            </select>
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2.5" placeholder="Ou digite o material" value={materialNomeLivre} onChange={(e) => setMaterialNomeLivre(e.target.value)} />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2.5" type="number" min={0} step="0.1" placeholder="Quantidade" value={materialQuantidade} onChange={(e) => setMaterialQuantidade(e.target.value)} />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2.5" placeholder="Unidade (ex: m, un)" value={materialUnidade} onChange={(e) => setMaterialUnidade(e.target.value)} />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:col-span-2" placeholder="Observação do material" value={materialObs} onChange={(e) => setMaterialObs(e.target.value)} />
+          </div>
+          {materialSelecionado && (
+            <p className="mt-2 text-xs font-semibold text-slate-600">
+              Estoque atual no catálogo: {materialSelecionado.estoque_qtd ?? 0}
+            </p>
+          )}
+          <button type="button" onClick={adicionarMaterial} className="mt-3 rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800">
+            Adicionar material
+          </button>
+
+          {materiais.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {materiais.map((m, index) => (
+                <div key={`${m.nome}-${index}`} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                  <div>
+                    <p className="font-semibold text-slate-800">{m.nome}</p>
+                    <p className="text-slate-600">
+                      {m.quantidade} {m.unidade}
+                      {m.fabricante ? ` | ${m.fabricante}` : ""}
+                      {m.modelo ? ` | ${m.modelo}` : ""}
+                    </p>
+                    {m.observacao ? <p className="text-slate-600">{m.observacao}</p> : null}
+                  </div>
+                  <button type="button" onClick={() => removerMaterial(index)} className="rounded-lg bg-rose-600 px-2 py-1 text-xs font-bold text-white hover:bg-rose-700">
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button
           onClick={salvarAntes}
           disabled={salvando || fotos.length < 1 || fotos.length > 4}
-          className={`mt-6 text-white w-full py-3 rounded ${
-            fotos.length >= 1 && fotos.length <= 4
-              ? "bg-green-600 hover:bg-green-700 cursor-pointer"
-              : "bg-gray-400 cursor-not-allowed"
-          }`}
+          className="mt-6 w-full rounded-xl bg-sky-700 px-4 py-3 font-bold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
-          {salvando ? "Salvando..." : fotos.length === 0 ? "Adicione pelo menos 1 foto" : fotos.length > 4 ? "Remova fotos extras" : "Salvar ANTES e ir para DEPOIS"}
+          {salvando ? "Salvando..." : "Salvar ANTES e ir para DEPOIS"}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push(`/tecnico/servicos/${id}`)}
+          className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100"
+        >
+          Voltar para o serviço
         </button>
       </div>
     </div>
