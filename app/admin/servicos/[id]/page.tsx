@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { API_URL, apiFetch } from "@/app/lib/api";
-import { formatDate, formatDuration, REPORT_CHANNELS, statusBadgeClass, statusLabel, normalizeStatus, STATUS } from "@/app/lib/os";
+import { formatDate, formatDuration, statusBadgeClass, statusLabel, normalizeStatus, STATUS } from "@/app/lib/os";
 
 type OSDetalhe = {
   _id?: string;
@@ -87,8 +87,6 @@ export default function DetalheOSPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [timer, setTimer] = useState<TimerData | null>(null);
   const [events, setEvents] = useState<Array<{ _id: string; old_status?: string; new_status?: string; createdAt?: string }>>([]);
-  const [canalEnvio, setCanalEnvio] = useState<(typeof REPORT_CHANNELS)[number]>("EMAIL");
-  const [deliveryEmail, setDeliveryEmail] = useState("");
   const [deliveryPhone, setDeliveryPhone] = useState("");
 
   useEffect(() => {
@@ -101,7 +99,6 @@ export default function DetalheOSPage() {
     try {
       const data = await apiFetch(`/projects/admin/view/${id}`);
       setOs(data as OSDetalhe);
-      setDeliveryEmail(String((data as OSDetalhe)?.email || ""));
       setDeliveryPhone(String((data as OSDetalhe)?.telefone || ""));
       try {
         const timerData = await apiFetch(`/os/${id}/timer`);
@@ -151,14 +148,13 @@ export default function DetalheOSPage() {
       await apiFetch(`/os/${id}/validate`, {
         method: "POST",
         body: JSON.stringify({
-          channel: canalEnvio,
-          delivery_email: deliveryEmail,
+          channel: "WHATSAPP",
+          delivery_email: "",
           delivery_phone_e164: deliveryPhone,
         }),
       });
       const numero = String(deliveryPhone || "").replace(/\D/g, "");
-      const deveAbrirWhatsapp = canalEnvio === "WHATSAPP" || canalEnvio === "AMBOS";
-      if (deveAbrirWhatsapp && numero) {
+      if (numero) {
         const texto = `OS ${os?.osNumero || id} validada. O relatório em PDF foi liberado no sistema.`;
         window.location.href = `https://wa.me/55${numero}?text=${encodeURIComponent(texto)}`;
       } else {
@@ -244,28 +240,11 @@ export default function DetalheOSPage() {
             <div className="flex flex-wrap items-center gap-2">
               <input
                 className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
-                placeholder="Email de envio"
-                value={deliveryEmail}
-                onChange={(e) => setDeliveryEmail(e.target.value)}
-              />
-              <input
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
                 placeholder="Telefone com DDD"
                 value={deliveryPhone}
                 onChange={(e) => setDeliveryPhone(e.target.value)}
               />
-              <select
-                value={canalEnvio}
-                onChange={(e) => setCanalEnvio(e.target.value as (typeof REPORT_CHANNELS)[number])}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
-              >
-                {REPORT_CHANNELS.map((canal) => (
-                  <option key={canal} value={canal}>
-                    {canal}
-                  </option>
-                ))}
-              </select>
-              <button onClick={validarOS} className="rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white hover:bg-teal-800">Validar e Finalizar</button>
+              <button onClick={validarOS} className="rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white hover:bg-teal-800">Validar e Enviar no WhatsApp</button>
             </div>
           )}
           {userRole === "admin" && [STATUS.FINALIZADA_PELO_TECNICO, STATUS.VALIDADA_PELO_ADMIN, STATUS.CANCELADA].includes(status as typeof STATUS.FINALIZADA_PELO_TECNICO | typeof STATUS.VALIDADA_PELO_ADMIN | typeof STATUS.CANCELADA) && (
