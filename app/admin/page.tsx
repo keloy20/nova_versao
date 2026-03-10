@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/app/lib/api";
+import { API_URL, apiFetch } from "@/app/lib/api";
 import { formatDate, isOpenStatus, normalizeStatus, statusBadgeClass, statusLabel, STATUS, STATUS_OPTIONS } from "@/app/lib/os";
 
 type OSItem = {
@@ -78,18 +78,22 @@ export default function AdminDashboard() {
     try {
       const lista = await apiFetch("/projects/admin/all");
       setOsList(Array.isArray(lista) ? lista : []);
-      const month = new Date().toISOString().slice(0, 7);
-      const metricas = (await apiFetch(`/dashboard/metrics?month=${month}`)) as MetricsResponse;
-      if (metricas && typeof metricas === "object") {
-        setMetrics({
-          total_abertas: Number(metricas.total_abertas || 0),
-          total_em_atendimento: Number(metricas.total_em_atendimento || 0),
-          total_pausadas: Number(metricas.total_pausadas || 0),
-          total_finalizadas_tecnico: Number(metricas.total_finalizadas_tecnico || 0),
-          total_fechadas: Number(metricas.total_fechadas || 0),
-          total_pendentes: Number(metricas.total_pendentes || 0),
-        });
-      } else {
+      try {
+        const month = new Date().toISOString().slice(0, 7);
+        const metricas = (await apiFetch(`/dashboard/metrics?month=${month}`)) as MetricsResponse;
+        if (metricas && typeof metricas === "object") {
+          setMetrics({
+            total_abertas: Number(metricas.total_abertas || 0),
+            total_em_atendimento: Number(metricas.total_em_atendimento || 0),
+            total_pausadas: Number(metricas.total_pausadas || 0),
+            total_finalizadas_tecnico: Number(metricas.total_finalizadas_tecnico || 0),
+            total_fechadas: Number(metricas.total_fechadas || 0),
+            total_pendentes: Number(metricas.total_pendentes || 0),
+          });
+        } else {
+          setMetrics(null);
+        }
+      } catch {
         setMetrics(null);
       }
 
@@ -110,6 +114,46 @@ export default function AdminDashboard() {
     }
   }
 
+  async function baixarOS(os: OSItem) {
+    try {
+      const osId = os._id || os.id;
+      if (!osId) throw new Error("OS sem identificador");
+
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/os/${osId}/report?variant=client&force=true`, {
+        method: "GET",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        let message = "Erro ao baixar OS";
+        const raw = await res.text();
+        if (raw) {
+          try {
+            const data = JSON.parse(raw) as { error?: string; message?: string };
+            message = data.error || data.message || message;
+          } catch {
+            message = raw;
+          }
+        }
+        throw new Error(message);
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `RELATORIO-OS-${os.osNumero || osId}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao baixar OS");
+    }
+  }
+
   const contadores = useMemo(() => {
     if (isProductionDeploy) {
       return {
@@ -124,12 +168,19 @@ export default function AdminDashboard() {
       atendimento: metrics?.total_em_atendimento ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.EM_ATENDIMENTO).length,
       pausadas: metrics?.total_pausadas ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.PAUSADA).length,
       pendentes:
-        (metrics?.total_abertas ?? 0) +
-        (metrics?.total_em_atendimento ?? 0) +
-        (metrics?.total_pausadas ?? 0),
+        metrics
+          ? (metrics.total_abertas ?? 0) + (metrics.total_em_atendimento ?? 0) + (metrics.total_pausadas ?? 0)
+          : osList.filter((o) => {
+              const s = normalizeStatus(o.status);
+              return s === STATUS.ABERTA || s === STATUS.EM_ATENDIMENTO || s === STATUS.PAUSADA;
+            }).length,
       finalizadas:
-        (metrics?.total_finalizadas_tecnico ?? 0) +
-        (metrics?.total_fechadas ?? 0),
+        metrics
+          ? (metrics.total_finalizadas_tecnico ?? 0) + (metrics.total_fechadas ?? 0)
+          : osList.filter((o) => {
+              const s = normalizeStatus(o.status);
+              return s === STATUS.FINALIZADA_PELO_TECNICO || s === STATUS.VALIDADA_PELO_ADMIN;
+            }).length,
     };
   }, [isProductionDeploy, metrics, osList]);
 
@@ -278,14 +329,14 @@ export default function AdminDashboard() {
       </div>
 
       <div className="space-y-3">
-        {grupos.ativas.map((os) => renderOsCard(os, isProductionDeploy, router))}
+        {grupos.ativas.map((os) => renderOsCard(os, isProductionDeploy, router, baixarOS))}
 
         {mostrarConcluidas && grupos.concluidas.length > 0 && (
           <>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
               Finalizadas / Validadas
             </div>
-            {grupos.concluidas.map((os) => renderOsCard(os, isProductionDeploy, router))}
+            {grupos.concluidas.map((os) => renderOsCard(os, isProductionDeploy, router, baixarOS))}
           </>
         )}
 
@@ -308,17 +359,33 @@ function Card({ titulo, valor, cor }: { titulo: string; valor: number; cor: stri
   );
 }
 
-function renderOsCard(os: OSItem, isProductionDeploy: boolean, router: { push: (href: string) => void }) {
+function renderOsCard(
+  os: OSItem,
+  isProductionDeploy: boolean,
+  router: { push: (href: string) => void },
+  onDownload: (os: OSItem) => void
+) {
   const tecnicoNome =
     (typeof os.tecnico === "object" ? os.tecnico?.nome : os.tecnico) ||
     os.tecnicoNome ||
     "Não definido";
+  const osId = os._id || os.id;
+
+  if (!osId) return null;
 
   return (
-    <button
-      key={os._id || os.id}
+    <div
+      key={osId}
+      role="button"
+      tabIndex={0}
       className="w-full rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-      onClick={() => router.push(`/admin/servicos/${os._id || os.id}`)}
+      onClick={() => router.push(`/admin/servicos/${osId}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          router.push(`/admin/servicos/${osId}`);
+        }
+      }}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
@@ -352,7 +419,20 @@ function renderOsCard(os: OSItem, isProductionDeploy: boolean, router: { push: (
       {!isProductionDeploy && isOpenStatus(os.status) && (
         <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-blue-700">OS em aberto</p>
       )}
-    </button>
+
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDownload(os);
+          }}
+        >
+          Baixar OS
+        </button>
+      </div>
+    </div>
   );
 }
 

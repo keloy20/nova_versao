@@ -88,7 +88,8 @@ export function formatDate(date?: string | null) {
 export const TIPO_MANUTENCAO = ["CORRETIVA", "PREVENTIVA", "VISTORIA"] as const;
 export const MOTIVOS_NAO_ASSINOU = ["AUSENTE", "FERIAS", "NAO_QUIS_ASSINAR", "OUTROS"] as const;
 export const PRIORIDADES = ["BAIXA", "MEDIA", "ALTA"] as const;
-export const REPORT_CHANNELS = ["EMAIL", "WHATSAPP", "AMBOS"] as const;
+// Modo temporário: canal de envio apenas WhatsApp web (wa.me)
+export const REPORT_CHANNELS = ["WHATSAPP"] as const;
 
 export function formatDuration(totalSeconds?: number | null) {
   const seconds = Math.max(0, Number(totalSeconds || 0));

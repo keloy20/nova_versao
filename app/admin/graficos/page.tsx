@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/app/lib/api";
+import { normalizeStatus, STATUS } from "@/app/lib/os";
 
 type Metrics = {
   month?: string;
@@ -11,6 +12,12 @@ type Metrics = {
   total_finalizadas_tecnico?: number;
   total_fechadas?: number;
   total_pendentes?: number;
+};
+
+type OSItem = {
+  status?: string;
+  createdAt?: string;
+  data_abertura?: string;
 };
 
 export default function AdminGraficosPage() {
@@ -26,8 +33,16 @@ export default function AdminGraficosPage() {
   async function carregar() {
     try {
       setLoading(true);
-      const data = (await apiFetch(`/dashboard/metrics?month=${month}`)) as Metrics;
-      setMetrics(data);
+      try {
+        const data = (await apiFetch(`/dashboard/metrics?month=${month}`)) as Metrics;
+        setMetrics(data);
+        return;
+      } catch {
+        // fallback: backend sem endpoint /dashboard/metrics
+      }
+
+      const list = await apiFetch("/projects/admin/all");
+      setMetrics(buildMetricsFromList(Array.isArray(list) ? list : [], month));
     } catch {
       setMetrics({
         month,
@@ -144,4 +159,32 @@ export default function AdminGraficosPage() {
       </div>
     </div>
   );
+}
+
+function buildMetricsFromList(list: OSItem[], month: string): Metrics {
+  const filtered = list.filter((item) => {
+    const rawDate = item.data_abertura || item.createdAt;
+    if (!rawDate) return false;
+    const date = new Date(rawDate);
+    if (Number.isNaN(date.getTime())) return false;
+    return date.toISOString().slice(0, 7) === month;
+  });
+
+  const total_abertas = filtered.filter((o) => normalizeStatus(o.status) === STATUS.ABERTA).length;
+  const total_em_atendimento = filtered.filter((o) => normalizeStatus(o.status) === STATUS.EM_ATENDIMENTO).length;
+  const total_pausadas = filtered.filter((o) => normalizeStatus(o.status) === STATUS.PAUSADA).length;
+  const total_finalizadas_tecnico = filtered.filter(
+    (o) => normalizeStatus(o.status) === STATUS.FINALIZADA_PELO_TECNICO
+  ).length;
+  const total_fechadas = filtered.filter((o) => normalizeStatus(o.status) === STATUS.VALIDADA_PELO_ADMIN).length;
+
+  return {
+    month,
+    total_abertas,
+    total_em_atendimento,
+    total_pausadas,
+    total_finalizadas_tecnico,
+    total_fechadas,
+    total_pendentes: total_abertas + total_em_atendimento + total_pausadas,
+  };
 }

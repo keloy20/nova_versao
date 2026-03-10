@@ -1,7 +1,9 @@
-const API_URL =
+const API_URL_RAW =
+  process.env.BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  process.env.VITE_API_URL ||
-  "https://gerenciador-de-os.onrender.com";
+  "http://127.0.0.1:10000";
+
+const API_URL = API_URL_RAW.replace("://localhost", "://127.0.0.1");
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -15,49 +17,40 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const isBrowser = typeof window !== "undefined";
-  const localAlt = API_URL.replace("http://localhost", "http://127.0.0.1");
-  const bases = isBrowser ? [API_URL, localAlt, "/lib/proxy"] : [API_URL];
-  const uniqueBases = Array.from(new Set(bases));
-
-  let res: Response | null = null;
-  let lastFetchError: unknown = null;
-
-  for (const base of uniqueBases) {
-    try {
-      res = await fetch(`${base}${path}`, {
-        ...options,
-        headers,
-        cache: options.cache || "no-store",
-      });
-      break;
-    } catch (err) {
-      lastFetchError = err;
-    }
-  }
-
-  if (!res) {
-    throw lastFetchError instanceof Error ? lastFetchError : new Error("Falha de conexao com a API");
-  }
+  const base = typeof window !== "undefined" ? "/lib/proxy" : API_URL;
+  const res = await fetch(`${base}${path}`, {
+    ...options,
+    headers,
+    cache: options.cache || "no-store",
+  });
 
   if (!res.ok) {
     let message = "Erro no servidor";
-    try {
-      const data = await res.json();
-      message = data.error || data.message || message;
-    } catch {
-      const text = await res.text();
-      if (text) message = text;
+    const raw = await res.text();
+    if (raw) {
+      try {
+        const data = JSON.parse(raw) as { error?: string; message?: string };
+        message = data.error || data.message || message;
+      } catch {
+        message = raw;
+      }
     }
     throw new Error(message);
   }
 
+  const raw = await res.text();
+  if (!raw) return null;
+
   const contentType = res.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) {
-    const text = await res.text();
-    return text;
+  if (contentType.includes("application/json")) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return raw;
+    }
   }
-  return res.json();
+
+  return raw;
 }
 
 export { API_URL };
