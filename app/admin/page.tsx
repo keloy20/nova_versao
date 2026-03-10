@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/app/lib/api";
+import { API_URL, apiFetch } from "@/app/lib/api";
 import { formatDate, isOpenStatus, normalizeStatus, statusBadgeClass, statusLabel, STATUS, STATUS_OPTIONS } from "@/app/lib/os";
 
 type OSItem = {
@@ -25,12 +25,26 @@ type OSItem = {
   solicitante_nome?: string;
 };
 
+type MetricsResponse = {
+  total_abertas?: number;
+  total_em_atendimento?: number;
+  total_pausadas?: number;
+  total_finalizadas_tecnico?: number;
+  total_validadas_admin?: number;
+  total_canceladas?: number;
+  total_fechadas?: number;
+  total_pendentes?: number;
+};
+
+const STATUS_CONCLUIDAS = "CONCLUIDAS";
+
 export default function AdminDashboard() {
   const router = useRouter();
   const isProductionDeploy = process.env.NODE_ENV === "production";
 
   const [osList, setOsList] = useState<OSItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
 
   const [statusFiltro, setStatusFiltro] = useState("");
   const [busca, setBusca] = useState("");
@@ -64,6 +78,24 @@ export default function AdminDashboard() {
     try {
       const lista = await apiFetch("/projects/admin/all");
       setOsList(Array.isArray(lista) ? lista : []);
+      try {
+        const month = new Date().toISOString().slice(0, 7);
+        const metricas = (await apiFetch(`/dashboard/metrics?month=${month}`)) as MetricsResponse;
+        if (metricas && typeof metricas === "object") {
+          setMetrics({
+            total_abertas: Number(metricas.total_abertas || 0),
+            total_em_atendimento: Number(metricas.total_em_atendimento || 0),
+            total_pausadas: Number(metricas.total_pausadas || 0),
+            total_finalizadas_tecnico: Number(metricas.total_finalizadas_tecnico || 0),
+            total_fechadas: Number(metricas.total_fechadas || 0),
+            total_pendentes: Number(metricas.total_pendentes || 0),
+          });
+        } else {
+          setMetrics(null);
+        }
+      } catch {
+        setMetrics(null);
+      }
 
       const pendente = localStorage.getItem("whatsapp-pendente");
       if (pendente) {
@@ -82,6 +114,46 @@ export default function AdminDashboard() {
     }
   }
 
+  async function baixarOS(os: OSItem) {
+    try {
+      const osId = os._id || os.id;
+      if (!osId) throw new Error("OS sem identificador");
+
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/os/${osId}/report?variant=client&force=true`, {
+        method: "GET",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        let message = "Erro ao baixar OS";
+        const raw = await res.text();
+        if (raw) {
+          try {
+            const data = JSON.parse(raw) as { error?: string; message?: string };
+            message = data.error || data.message || message;
+          } catch {
+            message = raw;
+          }
+        }
+        throw new Error(message);
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `RELATORIO-OS-${os.osNumero || osId}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao baixar OS");
+    }
+  }
+
   const contadores = useMemo(() => {
     if (isProductionDeploy) {
       return {
@@ -92,18 +164,48 @@ export default function AdminDashboard() {
     }
 
     return {
-      abertas: osList.filter((o) => normalizeStatus(o.status) === STATUS.ABERTA).length,
-      atendimento: osList.filter((o) => normalizeStatus(o.status) === STATUS.EM_ATENDIMENTO).length,
-      pausadas: osList.filter((o) => normalizeStatus(o.status) === STATUS.PAUSADA).length,
-      finalizadas: osList.filter((o) => normalizeStatus(o.status) === STATUS.FINALIZADA_PELO_TECNICO).length,
-      validadas: osList.filter((o) => normalizeStatus(o.status) === STATUS.VALIDADA_PELO_ADMIN).length,
+      abertas: metrics?.total_abertas ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.ABERTA).length,
+      atendimento: metrics?.total_em_atendimento ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.EM_ATENDIMENTO).length,
+      pausadas: metrics?.total_pausadas ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.PAUSADA).length,
+      pendentes:
+        metrics
+          ? (metrics.total_abertas ?? 0) + (metrics.total_em_atendimento ?? 0) + (metrics.total_pausadas ?? 0)
+          : osList.filter((o) => {
+              const s = normalizeStatus(o.status);
+              return s === STATUS.ABERTA || s === STATUS.EM_ATENDIMENTO || s === STATUS.PAUSADA;
+            }).length,
+      finalizadas:
+        metrics
+          ? (metrics.total_finalizadas_tecnico ?? 0) + (metrics.total_fechadas ?? 0)
+          : osList.filter((o) => {
+              const s = normalizeStatus(o.status);
+              return s === STATUS.FINALIZADA_PELO_TECNICO || s === STATUS.VALIDADA_PELO_ADMIN;
+            }).length,
     };
-  }, [isProductionDeploy, osList]);
+  }, [isProductionDeploy, metrics, osList]);
 
   const listaFiltrada = useMemo(() => {
     return osList.filter((os) => {
       const statusAtual = isProductionDeploy ? legacyStatusBucket(os.status) : normalizeStatus(os.status);
-      if (statusFiltro && statusAtual !== statusFiltro) return false;
+      const finalizadaOuValidada =
+        statusAtual === STATUS.FINALIZADA_PELO_TECNICO ||
+        statusAtual === STATUS.VALIDADA_PELO_ADMIN ||
+        statusAtual === "concluido";
+
+      if (statusFiltro) {
+        if (statusFiltro === STATUS_CONCLUIDAS) {
+          if (!finalizadaOuValidada) return false;
+        } else if (statusAtual !== statusFiltro) {
+          return false;
+        }
+      }
+
+      const filtroEhConcluida =
+        statusFiltro === STATUS_CONCLUIDAS ||
+        statusFiltro === STATUS.FINALIZADA_PELO_TECNICO ||
+        statusFiltro === STATUS.VALIDADA_PELO_ADMIN ||
+        statusFiltro === "concluido";
+      if (!busca.trim() && !filtroEhConcluida && finalizadaOuValidada) return false;
 
       const texto = `
         ${os.cliente || ""}
@@ -123,8 +225,37 @@ export default function AdminDashboard() {
       if (dataFim && dataBase > new Date(`${dataFim}T23:59:59`)) return false;
 
       return true;
+    }).sort((a, b) => {
+      const da = new Date(a.data_abertura || a.createdAt || 0).getTime();
+      const db = new Date(b.data_abertura || b.createdAt || 0).getTime();
+      return da - db;
     });
   }, [isProductionDeploy, osList, statusFiltro, busca, dataInicio, dataFim]);
+
+  const grupos = useMemo(() => {
+    const ativas: OSItem[] = [];
+    const concluidas: OSItem[] = [];
+
+    for (const os of listaFiltrada) {
+      const statusAtual = isProductionDeploy ? legacyStatusBucket(os.status) : normalizeStatus(os.status);
+      const finalizadaOuValidada =
+        statusAtual === STATUS.FINALIZADA_PELO_TECNICO ||
+        statusAtual === STATUS.VALIDADA_PELO_ADMIN ||
+        statusAtual === "concluido";
+
+      if (finalizadaOuValidada) concluidas.push(os);
+      else ativas.push(os);
+    }
+
+    return { ativas, concluidas };
+  }, [isProductionDeploy, listaFiltrada]);
+
+  const mostrarConcluidas =
+    Boolean(busca.trim()) ||
+    statusFiltro === STATUS_CONCLUIDAS ||
+    statusFiltro === STATUS.FINALIZADA_PELO_TECNICO ||
+    statusFiltro === STATUS.VALIDADA_PELO_ADMIN ||
+    statusFiltro === "concluido";
 
   if (loading) {
     return <div className="rounded-2xl border border-slate-200 bg-white p-6">Carregando...</div>;
@@ -142,10 +273,10 @@ export default function AdminDashboard() {
         ) : (
           <>
             <Card titulo="Abertas" valor={contadores.abertas ?? 0} cor="bg-amber-500" />
-            <Card titulo="Em atendimento" valor={contadores.atendimento ?? 0} cor="bg-sky-600" />
-            <Card titulo="Pausadas" valor={contadores.pausadas ?? 0} cor="bg-fuchsia-600" />
-            <Card titulo="Finalizadas técnico" valor={contadores.finalizadas ?? 0} cor="bg-emerald-600" />
-            <Card titulo="Validadas admin" valor={contadores.validadas ?? 0} cor="bg-teal-700" />
+            <Card titulo="Em andamento" valor={contadores.atendimento ?? 0} cor="bg-sky-600" />
+            <Card titulo="Pausadas" valor={contadores.pausadas ?? 0} cor="bg-purple-600" />
+            <Card titulo="Pendentes" valor={contadores.pendentes ?? 0} cor="bg-indigo-600" />
+            <Card titulo="Finalizadas" valor={contadores.finalizadas ?? 0} cor="bg-teal-700" />
           </>
         )}
       </div>
@@ -164,11 +295,14 @@ export default function AdminDashboard() {
               <option value="concluido">Concluído</option>
             </>
           ) : (
-            STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {statusLabel(s)}
-              </option>
-            ))
+            <>
+              <option value={STATUS_CONCLUIDAS}>Concluídas (todas)</option>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {statusLabel(s)}
+                </option>
+              ))}
+            </>
           )}
         </select>
 
@@ -195,55 +329,18 @@ export default function AdminDashboard() {
       </div>
 
       <div className="space-y-3">
-        {listaFiltrada.map((os) => {
-          const tecnicoNome =
-            (typeof os.tecnico === "object" ? os.tecnico?.nome : os.tecnico) ||
-            os.tecnicoNome ||
-            "Não definido";
+        {grupos.ativas.map((os) => renderOsCard(os, isProductionDeploy, router, baixarOS))}
 
-          return (
-            <button
-              key={os._id || os.id}
-              className="w-full rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              onClick={() => router.push(`/admin/servicos/${os._id || os.id}`)}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="text-lg font-extrabold text-slate-900">{os.osNumero || "Sem número"}</p>
-                  <p className="text-sm font-semibold text-slate-700">{os.cliente || "Sem cliente"}</p>
-                </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-bold ${
-                    isProductionDeploy ? legacyStatusColor(os.status) : statusBadgeClass(os.status)
-                  }`}
-                >
-                  {isProductionDeploy ? legacyStatusLabel(os.status) : statusLabel(os.status)}
-                </span>
-              </div>
+        {mostrarConcluidas && grupos.concluidas.length > 0 && (
+          <>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
+              Finalizadas / Validadas
+            </div>
+            {grupos.concluidas.map((os) => renderOsCard(os, isProductionDeploy, router, baixarOS))}
+          </>
+        )}
 
-              <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
-                <p>
-                  <b>Solicitante:</b> {os.solicitante_nome || "-"}
-                </p>
-                <p>
-                  <b>Tipo:</b> {os.tipo_manutencao || "-"}
-                </p>
-                <p>
-                  <b>Técnico:</b> {tecnicoNome}
-                </p>
-                <p>
-                  <b>Abertura:</b> {formatDate(os.data_abertura || os.createdAt)}
-                </p>
-              </div>
-
-              {!isProductionDeploy && isOpenStatus(os.status) && (
-                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-teal-700">OS em aberto</p>
-              )}
-            </button>
-          );
-        })}
-
-        {listaFiltrada.length === 0 && (
+        {grupos.ativas.length === 0 && (!mostrarConcluidas || grupos.concluidas.length === 0) && (
           <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600">
             Nenhuma OS encontrada para os filtros aplicados.
           </p>
@@ -258,6 +355,83 @@ function Card({ titulo, valor, cor }: { titulo: string; valor: number; cor: stri
     <div className={`${cor} rounded-2xl p-4 text-white shadow`}>
       <p className="text-xs font-semibold uppercase tracking-wide text-white/85">{titulo}</p>
       <p className="mt-1 text-3xl font-extrabold">{valor}</p>
+    </div>
+  );
+}
+
+function renderOsCard(
+  os: OSItem,
+  isProductionDeploy: boolean,
+  router: { push: (href: string) => void },
+  onDownload: (os: OSItem) => void
+) {
+  const tecnicoNome =
+    (typeof os.tecnico === "object" ? os.tecnico?.nome : os.tecnico) ||
+    os.tecnicoNome ||
+    "Não definido";
+  const osId = os._id || os.id;
+
+  if (!osId) return null;
+
+  return (
+    <div
+      key={osId}
+      role="button"
+      tabIndex={0}
+      className="w-full rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      onClick={() => router.push(`/admin/servicos/${osId}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          router.push(`/admin/servicos/${osId}`);
+        }
+      }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-lg font-extrabold text-slate-900">{os.osNumero || "Sem número"}</p>
+          <p className="text-sm font-semibold text-slate-700">{os.cliente || "Sem cliente"}</p>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold ${
+            isProductionDeploy ? legacyStatusColor(os.status) : statusBadgeClass(os.status)
+          }`}
+        >
+          {isProductionDeploy ? legacyStatusLabel(os.status) : statusLabel(os.status)}
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+        <p>
+          <b>Solicitante:</b> {os.solicitante_nome || "-"}
+        </p>
+        <p>
+          <b>Tipo:</b> {os.tipo_manutencao || "-"}
+        </p>
+        <p>
+          <b>Técnico:</b> {tecnicoNome}
+        </p>
+        <p>
+          <b>Abertura:</b> {formatDate(os.data_abertura || os.createdAt)}
+        </p>
+      </div>
+
+      {!isProductionDeploy && isOpenStatus(os.status) && (
+        <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-blue-700">OS em aberto</p>
+      )}
+
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDownload(os);
+          }}
+        >
+          Baixar OS
+        </button>
+      </div>
     </div>
   );
 }

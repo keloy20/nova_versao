@@ -10,8 +10,15 @@
 const LEGACY_TO_CURRENT: Record<string, string> = {
   aguardando_tecnico: STATUS.ABERTA,
   em_andamento: STATUS.EM_ATENDIMENTO,
-  concluido: STATUS.FINALIZADA_PELO_TECNICO,
+  em_atendimento: STATUS.EM_ATENDIMENTO,
+  concluido: STATUS.VALIDADA_PELO_ADMIN,
+  concluida: STATUS.VALIDADA_PELO_ADMIN,
+  finalizado: STATUS.VALIDADA_PELO_ADMIN,
+  finalizada: STATUS.VALIDADA_PELO_ADMIN,
+  fechado: STATUS.VALIDADA_PELO_ADMIN,
+  fechada: STATUS.VALIDADA_PELO_ADMIN,
   cancelado: STATUS.CANCELADA,
+  cancelada: STATUS.CANCELADA,
 };
 
 export const STATUS_OPTIONS = [
@@ -25,14 +32,20 @@ export const STATUS_OPTIONS = [
 
 export function normalizeStatus(status?: string | null) {
   if (!status) return STATUS.ABERTA;
-  return LEGACY_TO_CURRENT[status] || status;
+  const raw = String(status).trim();
+  const lowered = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[-\s]+/g, "_");
+  return LEGACY_TO_CURRENT[lowered] || raw;
 }
 
 export function statusLabel(rawStatus?: string | null) {
   const status = normalizeStatus(rawStatus);
 
   if (status === STATUS.ABERTA) return "Aberta";
-  if (status === STATUS.EM_ATENDIMENTO) return "Em atendimento";
+  if (status === STATUS.EM_ATENDIMENTO) return "Em andamento";
   if (status === STATUS.PAUSADA) return "Pausada";
   if (status === STATUS.FINALIZADA_PELO_TECNICO) return "Finalizada pelo técnico";
   if (status === STATUS.VALIDADA_PELO_ADMIN) return "Validada pelo admin";
@@ -74,3 +87,14 @@ export function formatDate(date?: string | null) {
 
 export const TIPO_MANUTENCAO = ["CORRETIVA", "PREVENTIVA", "VISTORIA"] as const;
 export const MOTIVOS_NAO_ASSINOU = ["AUSENTE", "FERIAS", "NAO_QUIS_ASSINAR", "OUTROS"] as const;
+export const PRIORIDADES = ["BAIXA", "MEDIA", "ALTA"] as const;
+// Modo temporário: canal de envio apenas WhatsApp web (wa.me)
+export const REPORT_CHANNELS = ["WHATSAPP"] as const;
+
+export function formatDuration(totalSeconds?: number | null) {
+  const seconds = Math.max(0, Number(totalSeconds || 0));
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}

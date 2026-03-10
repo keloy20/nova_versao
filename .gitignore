@@ -29,6 +29,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+frontend-dev.log
+frontend-dev.err.log
+backend-dev.log
+backend-dev.err.log
+backend-fix.log
+backend-fix.err.log
 
 # env files (can opt-in for committing if needed)
 .env*
