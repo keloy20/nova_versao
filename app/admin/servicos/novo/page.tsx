@@ -50,6 +50,7 @@ export default function NovaOSPage() {
   const router = useRouter();
 
   const [cliente, setCliente] = useState("");
+  const [clienteBusca, setClienteBusca] = useState("");
   const [subcliente, setSubcliente] = useState("");
   const [clientesDB, setClientesDB] = useState<ClienteSugestao[]>([]);
   const [mostrarLista, setMostrarLista] = useState(false);
@@ -125,7 +126,7 @@ export default function NovaOSPage() {
 
   async function carregarClientes(nome: string) {
     const query = nome.trim();
-    if (query.length < 2) {
+    if (query.length < 1) {
       setBuscaClientesErro("");
       setBuscaClientesLoading(false);
       return;
@@ -185,24 +186,24 @@ export default function NovaOSPage() {
 
   function selecionarClienteDB(c: ClienteSugestao) {
     setCliente(c.cliente || "");
+    setClienteBusca(formatClienteLabel(c));
     setSubcliente(c.subcliente || "");
     setEndereco(c.endereco || "");
     setTelefone(c.phone_e164 || c.telefone || "");
     setEmail(c.email || "");
     setMarca(c.marca || "");
     setUnidade(c.unidade || "");
-    setClientesDB([]);
     setBuscaClientesErro("");
     setMostrarLista(false);
     carregarSolicitantesVinculados(c.cliente || "", c.subcliente || "");
   }
 
-  const clientesFiltrados = cliente.trim().length < 2
+  const clientesFiltrados = clienteBusca.trim().length < 1
     ? []
     : dedupeClientes(
         clientesDB.filter((item) => {
-          const termo = cliente.trim().toLowerCase();
-          const texto = `${item.cliente || ""} ${item.subcliente || ""} ${item.unidade || ""} ${item.marca || ""}`.toLowerCase();
+          const termo = normalizeText(clienteBusca);
+          const texto = normalizeText(buildClienteSearchText(item));
           return texto.includes(termo);
         })
       ).slice(0, 20);
@@ -363,35 +364,44 @@ export default function NovaOSPage() {
             <input
               className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
               placeholder="Digite o cliente"
-              value={cliente}
+              value={clienteBusca}
               onChange={(e) => {
                 const v = e.target.value;
+                setClienteBusca(v);
                 setCliente(v);
                 setSubcliente("");
                 setEndereco("");
                 setTelefone("");
+                setEmail("");
                 setMarca("");
                 setUnidade("");
                 setBuscaClientesErro("");
 
                 const query = v.trim();
+                const match = resolveSmartCliente(query, clientesDB);
+                if (match) {
+                  selecionarClienteDB(match);
+                  return;
+                }
+
                 if (debounceRef.current) clearTimeout(debounceRef.current);
-                if (query.length >= 2) {
+                if (query.length >= 1) {
                   setMostrarLista(true);
                   debounceRef.current = setTimeout(() => {
                     carregarClientes(query);
                   }, 300);
                 } else {
                   setMostrarLista(false);
-                  setClientesDB([]);
                   setBuscaClientesLoading(false);
                 }
               }}
               onBlur={() => {
+                const match = resolveSmartCliente(clienteBusca, clientesDB);
+                if (match) selecionarClienteDB(match);
                 setTimeout(() => setMostrarLista(false), 150);
               }}
               onFocus={() => {
-                if (cliente.trim().length >= 2) setMostrarLista(true);
+                if (clienteBusca.trim().length >= 1 || clientesDB.length > 0) setMostrarLista(true);
               }}
             />
           </label>
@@ -411,12 +421,7 @@ export default function NovaOSPage() {
                   onClick={() => selecionarClienteDB(c)}
                   className="w-full border-b border-slate-100 px-3 py-2 text-left text-sm hover:bg-slate-50"
                 >
-                  <b>{c.cliente}</b>
-                  {c.cliente?.toLowerCase() === "dasa"
-                    ? ` - Unidade: ${c.unidade || "-"} | Marca: ${c.marca || "-"}`
-                    : c.subcliente
-                    ? ` - ${c.subcliente}`
-                    : ""}
+                  <b>{c.cliente}</b> <span className="text-slate-600">{formatClienteSecondary(c)}</span>
                 </button>
               ))}
               {!buscaClientesLoading && !buscaClientesErro && clientesFiltrados.length === 0 && (
@@ -623,4 +628,54 @@ function dedupeClientes(lista: ClienteSugestao[]) {
   }
 
   return Array.from(mapa.values());
+}
+
+function normalizeText(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function formatClienteSecondary(item: ClienteSugestao) {
+  if (String(item.cliente || "").trim().toLowerCase() === "dasa") {
+    const partes = [];
+    if (item.marca) partes.push(`Marca: ${item.marca}`);
+    if (item.unidade) partes.push(`Unidade: ${item.unidade}`);
+    return partes.length > 0 ? `- ${partes.join(" | ")}` : "";
+  }
+
+  return item.subcliente ? `- ${item.subcliente}` : "";
+}
+
+function formatClienteLabel(item: ClienteSugestao) {
+  const secondary = formatClienteSecondary(item);
+  return `${item.cliente || ""} ${secondary}`.trim();
+}
+
+function buildClienteSearchText(item: ClienteSugestao) {
+  return [
+    item.cliente || "",
+    item.subcliente || "",
+    item.marca || "",
+    item.unidade || "",
+    formatClienteLabel(item),
+  ].join(" ");
+}
+
+function resolveSmartCliente(query: string, options: ClienteSugestao[]) {
+  const q = normalizeText(query);
+  if (!q) return null;
+
+  const matches = dedupeClientes(options).filter((item) => normalizeText(buildClienteSearchText(item)).includes(q));
+  if (matches.length === 1) return matches[0];
+
+  const exact = matches.find((item) => normalizeText(formatClienteLabel(item)) === q);
+  if (exact) return exact;
+
+  const startsWith = matches.filter((item) => normalizeText(formatClienteLabel(item)).startsWith(q));
+  if (startsWith.length === 1) return startsWith[0];
+
+  return null;
 }
