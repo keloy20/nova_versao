@@ -51,6 +51,7 @@ export default function NovaOSPage() {
 
   const [cliente, setCliente] = useState("");
   const [clienteBusca, setClienteBusca] = useState("");
+  const [clienteSelecionadoId, setClienteSelecionadoId] = useState("");
   const [subcliente, setSubcliente] = useState("");
   const [clientesDB, setClientesDB] = useState<ClienteSugestao[]>([]);
   const [mostrarLista, setMostrarLista] = useState(false);
@@ -185,6 +186,7 @@ export default function NovaOSPage() {
   }
 
   function selecionarClienteDB(c: ClienteSugestao) {
+    setClienteSelecionadoId(c._id || "");
     setCliente(c.cliente || "");
     setClienteBusca(formatClienteLabel(c));
     setSubcliente(c.subcliente || "");
@@ -207,6 +209,11 @@ export default function NovaOSPage() {
     );
   }, [cliente, clientesDB]);
 
+  const clienteSelecionado = useMemo(
+    () => clientesDB.find((item) => item._id === clienteSelecionadoId) || null,
+    [clienteSelecionadoId, clientesDB]
+  );
+
   const subclienteOptions = useMemo(() => {
     if (isDASA) return [];
 
@@ -220,6 +227,22 @@ export default function NovaOSPage() {
   }, [isDASA, registrosClienteSelecionado]);
 
   useEffect(() => {
+    if (clienteSelecionado) {
+      if (clienteSelecionado.endereco) setEndereco(clienteSelecionado.endereco);
+      if (clienteSelecionado.phone_e164 || clienteSelecionado.telefone) {
+        setTelefone(clienteSelecionado.phone_e164 || clienteSelecionado.telefone || "");
+      }
+      if (clienteSelecionado.email) setEmail(clienteSelecionado.email);
+      if (clienteSelecionado.subcliente && clienteSelecionado.subcliente !== subcliente) {
+        setSubcliente(clienteSelecionado.subcliente);
+      }
+      if (isDASA) {
+        if (clienteSelecionado.unidade) setUnidade(clienteSelecionado.unidade);
+        if (clienteSelecionado.marca) setMarca(clienteSelecionado.marca);
+      }
+      return;
+    }
+
     const registro = findClienteRegistro({
       cliente,
       subcliente,
@@ -243,7 +266,7 @@ export default function NovaOSPage() {
     if (registro.subcliente && registro.subcliente !== subcliente) {
       setSubcliente(registro.subcliente);
     }
-  }, [cliente, subcliente, unidade, marca, isDASA, clientesDB]);
+  }, [cliente, subcliente, unidade, marca, isDASA, clientesDB, clienteSelecionado]);
 
   const clientesFiltrados = clienteBusca.trim().length < 1
     ? []
@@ -415,6 +438,7 @@ export default function NovaOSPage() {
               onChange={(e) => {
                 const v = e.target.value;
                 setClienteBusca(v);
+                setClienteSelecionadoId("");
                 setCliente(v);
                 setSubcliente("");
                 setEndereco("");
@@ -694,19 +718,25 @@ function normalizeText(value: string) {
 }
 
 function formatClienteSecondary(item: ClienteSugestao) {
-  if (String(item.cliente || "").trim().toLowerCase() === "dasa") {
-    const partes = [];
-    if (item.marca) partes.push(`Marca: ${item.marca}`);
-    if (item.unidade) partes.push(`Unidade: ${item.unidade}`);
-    return partes.length > 0 ? `- ${partes.join(" | ")}` : "";
-  }
+  const infoPrincipal =
+    String(item.cliente || "").trim().toLowerCase() === "dasa"
+      ? [item.marca ? `Marca: ${item.marca}` : "", item.unidade ? `Unidade: ${item.unidade}` : ""]
+      : [item.subcliente || ""];
 
-  return item.subcliente ? `- ${item.subcliente}` : "";
+  const detalhes = [item.endereco || "", item.telefone || "", item.email || ""].filter(Boolean);
+
+  const partes = [...infoPrincipal.filter(Boolean), ...detalhes];
+  if (partes.length === 0) return "";
+  return `- ${partes.join(" | ")}`;
 }
 
 function formatClienteLabel(item: ClienteSugestao) {
-  const secondary = formatClienteSecondary(item);
-  return `${item.cliente || ""} ${secondary}`.trim();
+  const identificador =
+    String(item.cliente || "").trim().toLowerCase() === "dasa"
+      ? [item.cliente || "", item.marca || "", item.unidade || ""]
+      : [item.cliente || "", item.subcliente || ""];
+
+  return identificador.filter(Boolean).join(" - ").trim();
 }
 
 function buildClienteSearchText(item: ClienteSugestao) {
@@ -715,6 +745,9 @@ function buildClienteSearchText(item: ClienteSugestao) {
     item.subcliente || "",
     item.marca || "",
     item.unidade || "",
+    item.endereco || "",
+    item.telefone || "",
+    item.email || "",
     formatClienteLabel(item),
   ].join(" ");
 }
@@ -728,9 +761,6 @@ function resolveSmartCliente(query: string, options: ClienteSugestao[]) {
 
   const exact = matches.find((item) => normalizeText(formatClienteLabel(item)) === q);
   if (exact) return exact;
-
-  const startsWith = matches.filter((item) => normalizeText(formatClienteLabel(item)).startsWith(q));
-  if (startsWith.length === 1) return startsWith[0];
 
   return null;
 }
@@ -757,6 +787,11 @@ function findClienteRegistro({
   const subclienteNormalizado = normalizeText(subcliente);
   const unidadeNormalizada = normalizeText(unidade);
   const marcaNormalizada = normalizeText(marca);
+  const temDiscriminador = Boolean(subclienteNormalizado || unidadeNormalizada || marcaNormalizada);
+
+  if (!temDiscriminador) {
+    return listaCliente.length === 1 ? listaCliente[0] : null;
+  }
 
   const matchExato = listaCliente.find((item) => {
     const mesmoSubcliente = subclienteNormalizado
@@ -771,7 +806,5 @@ function findClienteRegistro({
     return mesmoSubcliente && mesmaUnidade && mesmaMarca;
   });
 
-  if (matchExato) return matchExato;
-  if (listaCliente.length === 1) return listaCliente[0];
-  return null;
+  return matchExato || null;
 }

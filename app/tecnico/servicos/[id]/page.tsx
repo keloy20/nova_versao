@@ -33,7 +33,9 @@ type ServicoDetalhe = {
   data_inicio_deslocamento?: string;
   data_fim_deslocamento?: string;
   deslocamento_segundos?: number;
+  deslocamento_concluido?: boolean;
   detalhamento?: string;
+  feedback_admin?: string;
   antes?: HistoricoBloco;
   depois?: HistoricoBloco;
   botao_gps_endereco?: string;
@@ -107,7 +109,13 @@ export default function ServicoPage() {
   if (!os) return <div className="p-6">OS não encontrada</div>;
 
   const status = normalizeStatus(os.status);
-  const canGoDepois = status === STATUS.EM_ATENDIMENTO || status === STATUS.PAUSADA;
+  const canGoDepois =
+    status === STATUS.EM_ATENDIMENTO || status === STATUS.PAUSADA || status === STATUS.DEVOLVIDA_PARA_AJUSTE;
+  const canEditar = canGoDepois || status === STATUS.ABERTA;
+  const podeIniciarDeslocamento =
+    !os.data_inicio_deslocamento && !os.data_fim_deslocamento && !os.deslocamento_concluido;
+  const podeFinalizarDeslocamento =
+    Boolean(os.data_inicio_deslocamento) && !os.data_fim_deslocamento && !os.deslocamento_concluido;
 
   return (
     <div className="min-h-screen p-4 text-slate-900 sm:p-6">
@@ -163,14 +171,16 @@ export default function ServicoPage() {
         )}
 
         <div className="mt-5 flex flex-wrap gap-3">
-          {!os.data_inicio_deslocamento || os.data_fim_deslocamento ? (
+          {podeIniciarDeslocamento && (
             <button
               onClick={() => mudarDeslocamento("iniciar")}
               className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-600"
             >
               Iniciar deslocamento
             </button>
-          ) : (
+          )}
+
+          {podeFinalizarDeslocamento && (
             <button
               onClick={() => mudarDeslocamento("finalizar")}
               className="rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-700"
@@ -206,20 +216,24 @@ export default function ServicoPage() {
             </button>
           )}
 
-          <button
-            onClick={() => router.push(`/tecnico/servicos/${id}/antes`)}
-            className="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700"
-          >
-            Registrar ANTES
-          </button>
+          {canEditar && (
+            <button
+              onClick={() => router.push(`/tecnico/servicos/${id}/antes`)}
+              className="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700"
+            >
+              Registrar ANTES
+            </button>
+          )}
 
-          <button
-            onClick={() => router.push(`/tecnico/servicos/${id}/depois`)}
-            className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            disabled={!canGoDepois}
-          >
-            Registrar DEPOIS e Finalizar
-          </button>
+          {canEditar && (
+            <button
+              onClick={() => router.push(`/tecnico/servicos/${id}/depois`)}
+              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              disabled={!canGoDepois}
+            >
+              Revisar DEPOIS e Enviar
+            </button>
+          )}
 
           <button
             onClick={() => router.push("/tecnico")}
@@ -233,7 +247,27 @@ export default function ServicoPage() {
           <p><b>Início deslocamento:</b> {formatDate(os.data_inicio_deslocamento)}</p>
           <p><b>Fim deslocamento:</b> {formatDate(os.data_fim_deslocamento)}</p>
           <p><b>Tempo deslocamento:</b> {formatDuration(os.deslocamento_segundos)}</p>
+          {os.deslocamento_concluido && <p><b>Status deslocamento:</b> concluído e bloqueado para esta OS</p>}
         </div>
+
+        {status === STATUS.FINALIZADA_PELO_TECNICO && (
+          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+            Serviço enviado. Aguarda aprovação do admin. Agora você só pode visualizar.
+          </div>
+        )}
+
+        {status === STATUS.DEVOLVIDA_PARA_AJUSTE && (
+          <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <p className="font-bold">Admin pediu correção. Revise e reenvie.</p>
+            <p>{os.feedback_admin || "Sem observação do admin."}</p>
+          </div>
+        )}
+
+        {status === STATUS.VALIDADA_PELO_ADMIN && (
+          <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm font-semibold text-teal-800">
+            OS concluída e validada pelo admin.
+          </div>
+        )}
 
         {(os.botao_gps_endereco || os.botao_ligar_telefone) && (
           <div className="mt-4 flex flex-wrap gap-2">

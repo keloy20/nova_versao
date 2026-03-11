@@ -42,6 +42,7 @@ type OSDetalhe = {
   cliente_funcao?: string;
   cliente_nao_assinou?: boolean;
   motivo_nao_assinou?: string;
+  feedback_admin?: string;
   detalhamento?: string;
   prioridade?: string;
   started_at?: string;
@@ -176,6 +177,22 @@ export default function DetalheOSPage() {
     }
   }
 
+  async function devolverParaAjuste() {
+    const reason = prompt("Descreva o que o técnico precisa corrigir:");
+    if (reason === null) return;
+
+    try {
+      await apiFetch(projectOsPath(`/${id}/request-changes`), {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      alert("OS devolvida para ajuste");
+      await carregarOS();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao devolver OS");
+    }
+  }
+
   async function gerarPDF() {
     if (!os) return;
 
@@ -245,6 +262,7 @@ export default function DetalheOSPage() {
                 onChange={(e) => setDeliveryPhone(e.target.value)}
               />
               <button onClick={validarOS} className="rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white hover:bg-teal-800">Validar e Enviar no WhatsApp</button>
+              <button onClick={devolverParaAjuste} className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white hover:bg-rose-800">Devolver para ajuste</button>
             </div>
           )}
           {userRole === "admin" && [STATUS.FINALIZADA_PELO_TECNICO, STATUS.VALIDADA_PELO_ADMIN, STATUS.CANCELADA].includes(status as typeof STATUS.FINALIZADA_PELO_TECNICO | typeof STATUS.VALIDADA_PELO_ADMIN | typeof STATUS.CANCELADA) && (
@@ -293,6 +311,7 @@ export default function DetalheOSPage() {
           <Info label="Cliente função" value={os.cliente_funcao} />
           <Info label="Cliente não assinou" value={os.cliente_nao_assinou ? "Sim" : "Não"} />
           <Info label="Motivo não assinou" value={os.motivo_nao_assinou} />
+          <Info label="Feedback admin" value={os.feedback_admin} />
         </div>
 
         {(os.botao_gps_endereco || os.botao_ligar_telefone) && (

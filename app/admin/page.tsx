@@ -172,7 +172,7 @@ export default function AdminDashboard() {
           ? (metrics.total_abertas ?? 0) + (metrics.total_em_atendimento ?? 0) + (metrics.total_pausadas ?? 0)
           : osList.filter((o) => {
               const s = normalizeStatus(o.status);
-              return s === STATUS.ABERTA || s === STATUS.EM_ATENDIMENTO || s === STATUS.PAUSADA;
+              return s === STATUS.ABERTA || s === STATUS.EM_ATENDIMENTO || s === STATUS.PAUSADA || s === STATUS.DEVOLVIDA_PARA_AJUSTE;
             }).length,
       aguardandoValidacao:
         metrics?.total_finalizadas_tecnico ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.FINALIZADA_PELO_TECNICO).length,

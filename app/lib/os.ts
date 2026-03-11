@@ -3,6 +3,7 @@
   EM_ATENDIMENTO: "EM_ATENDIMENTO",
   PAUSADA: "PAUSADA",
   FINALIZADA_PELO_TECNICO: "FINALIZADA_PELO_TECNICO",
+  DEVOLVIDA_PARA_AJUSTE: "DEVOLVIDA_PARA_AJUSTE",
   VALIDADA_PELO_ADMIN: "VALIDADA_PELO_ADMIN",
   CANCELADA: "CANCELADA",
 } as const;
@@ -17,6 +18,7 @@ const LEGACY_TO_CURRENT: Record<string, string> = {
   finalizado: STATUS.VALIDADA_PELO_ADMIN,
   finalizada: STATUS.VALIDADA_PELO_ADMIN,
   finalizada_pelo_tecnico: STATUS.FINALIZADA_PELO_TECNICO,
+  devolvida_para_ajuste: STATUS.DEVOLVIDA_PARA_AJUSTE,
   validada_pelo_admin: STATUS.VALIDADA_PELO_ADMIN,
   fechado: STATUS.VALIDADA_PELO_ADMIN,
   fechada: STATUS.VALIDADA_PELO_ADMIN,
@@ -29,6 +31,7 @@ export const STATUS_OPTIONS = [
   STATUS.EM_ATENDIMENTO,
   STATUS.PAUSADA,
   STATUS.FINALIZADA_PELO_TECNICO,
+  STATUS.DEVOLVIDA_PARA_AJUSTE,
   STATUS.VALIDADA_PELO_ADMIN,
   STATUS.CANCELADA,
 ];
@@ -51,6 +54,7 @@ export function statusLabel(rawStatus?: string | null) {
   if (status === STATUS.EM_ATENDIMENTO) return "Em andamento";
   if (status === STATUS.PAUSADA) return "Pausada";
   if (status === STATUS.FINALIZADA_PELO_TECNICO) return "Aguardando validação";
+  if (status === STATUS.DEVOLVIDA_PARA_AJUSTE) return "Refazer e reenviar";
   if (status === STATUS.VALIDADA_PELO_ADMIN) return "Finalizada";
   if (status === STATUS.CANCELADA) return "Cancelada";
   return status;
@@ -63,6 +67,7 @@ export function statusBadgeClass(rawStatus?: string | null) {
   if (status === STATUS.EM_ATENDIMENTO) return "bg-sky-100 text-sky-700 border border-sky-200";
   if (status === STATUS.PAUSADA) return "bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200";
   if (status === STATUS.FINALIZADA_PELO_TECNICO) return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+  if (status === STATUS.DEVOLVIDA_PARA_AJUSTE) return "bg-rose-100 text-rose-700 border border-rose-200";
   if (status === STATUS.VALIDADA_PELO_ADMIN) return "bg-teal-100 text-teal-700 border border-teal-200";
   if (status === STATUS.CANCELADA) return "bg-rose-100 text-rose-700 border border-rose-200";
   return "bg-slate-100 text-slate-700 border border-slate-200";
@@ -70,7 +75,7 @@ export function statusBadgeClass(rawStatus?: string | null) {
 
 export function isOpenStatus(rawStatus?: string | null) {
   const status = normalizeStatus(rawStatus);
-  const openStatuses: string[] = [STATUS.ABERTA, STATUS.EM_ATENDIMENTO, STATUS.PAUSADA];
+  const openStatuses: string[] = [STATUS.ABERTA, STATUS.EM_ATENDIMENTO, STATUS.PAUSADA, STATUS.DEVOLVIDA_PARA_AJUSTE];
   return openStatuses.includes(status);
 }
 

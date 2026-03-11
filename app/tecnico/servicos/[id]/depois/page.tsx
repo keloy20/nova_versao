@@ -8,6 +8,31 @@ import { MOTIVOS_NAO_ASSINOU, normalizeStatus, STATUS } from "@/app/lib/os";
 type OSTecnico = {
   osNumero?: string;
   status?: string;
+  feedback_admin?: string;
+  antes?: {
+    relatorio?: string;
+    observacao?: string;
+    fotos?: string[];
+  };
+  depois?: {
+    relatorio?: string;
+    observacao?: string;
+    fotos?: string[];
+  };
+  assinatura_tecnico?: string;
+  assinatura_cliente?: string;
+  cliente_nome?: string;
+  cliente_funcao?: string;
+  cliente_nao_assinou?: boolean;
+  motivo_nao_assinou?: string;
+  materiais_solicitados?: Array<{
+    nome?: string;
+    fabricante?: string;
+    modelo?: string;
+    quantidade?: number;
+    unidade?: string;
+    observacao?: string;
+  }>;
 };
 
 export default function DepoisPage() {
@@ -21,6 +46,7 @@ export default function DepoisPage() {
   const [fotos, setFotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [revisando, setRevisando] = useState(false);
 
   const [assinaturaTecnico, setAssinaturaTecnico] = useState("");
   const [assinaturaCliente, setAssinaturaCliente] = useState("");
@@ -39,12 +65,20 @@ export default function DepoisPage() {
       const data = (await apiFetch(`/projects/tecnico/view/${id}`)) as OSTecnico;
       const status = normalizeStatus(data.status);
 
-      if (status !== STATUS.EM_ATENDIMENTO && status !== STATUS.PAUSADA) {
+      if (![STATUS.EM_ATENDIMENTO, STATUS.PAUSADA, STATUS.DEVOLVIDA_PARA_AJUSTE].includes(status as typeof STATUS.EM_ATENDIMENTO)) {
         router.replace(`/tecnico/servicos/${id}`);
         return;
       }
 
       setOs(data);
+      setRelatorio(data.depois?.relatorio || "");
+      setObservacao(data.depois?.observacao || "");
+      setAssinaturaTecnico(data.assinatura_tecnico || "");
+      setAssinaturaCliente(data.assinatura_cliente || "");
+      setClienteNome(data.cliente_nome || "");
+      setClienteFuncao(data.cliente_funcao || "");
+      setClienteNaoAssinou(Boolean(data.cliente_nao_assinou));
+      setMotivoNaoAssinou(data.motivo_nao_assinou || "");
     } catch {
       setOs(null);
     } finally {
@@ -115,22 +149,38 @@ export default function DepoisPage() {
     return true;
   }
 
-  async function salvarDepoisEFinalizar() {
-    if (!validarFinalizacao()) return;
-
+  async function salvarDepoisRascunho() {
     setSalvando(true);
 
     try {
       const formData = new FormData();
       formData.append("relatorio", relatorio);
       formData.append("observacao", observacao);
+      formData.append("materiais_solicitados", JSON.stringify(os?.materiais_solicitados || []));
       fotos.forEach((f) => formData.append("fotos", f));
 
       await apiFetch(`/projects/tecnico/depois/${id}`, {
         method: "PUT",
         body: formData,
       });
+      return true;
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao salvar DEPOIS");
+      return false;
+    } finally {
+      setSalvando(false);
+    }
+  }
 
+  async function enviarAoAdmin() {
+    if (!validarFinalizacao()) return;
+
+    const salvo = await salvarDepoisRascunho();
+    if (!salvo) return;
+
+    setSalvando(true);
+
+    try {
       await apiFetch(projectOsPath(`/${id}/finish`), {
         method: "POST",
         body: JSON.stringify({
@@ -154,6 +204,55 @@ export default function DepoisPage() {
 
   if (loading) return <div className="p-6">Carregando...</div>;
   if (!os) return <div className="p-6">OS não encontrada</div>;
+
+  if (revisando) {
+    return (
+      <div className="min-h-screen p-4 text-slate-900 sm:p-6">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-extrabold">Revisar antes de enviar - {os.osNumero}</h1>
+          <div className="mt-5 space-y-4 text-sm text-slate-700">
+            {os.feedback_admin && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+                <p className="font-bold">Correção pedida pelo admin</p>
+                <p>{os.feedback_admin}</p>
+              </div>
+            )}
+            <ResumoBloco titulo="Parecer final" texto={relatorio} />
+            <ResumoBloco titulo="Observações finais" texto={observacao} />
+            <ResumoBloco titulo="Assinatura do técnico" imagem={assinaturaTecnico} />
+            {!clienteNaoAssinou ? (
+              <ResumoBloco titulo="Assinatura do cliente" imagem={assinaturaCliente} />
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="font-semibold text-slate-800">Cliente não assinou</p>
+                <p>Nome: {clienteNome || "-"}</p>
+                <p>Função: {clienteFuncao || "-"}</p>
+                <p>Motivo: {motivoNaoAssinou || "-"}</p>
+              </div>
+            )}
+            {fotos.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="mb-2 font-semibold text-slate-800">Fotos do DEPOIS</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {fotos.map((f, i) => (
+                    <img key={i} src={URL.createObjectURL(f)} alt={`Foto ${i + 1}`} className="h-28 w-full rounded-lg object-cover" />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={() => setRevisando(false)} className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100">
+              Editar antes de enviar
+            </button>
+            <button onClick={enviarAoAdmin} disabled={salvando} className="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:bg-slate-400">
+              {salvando ? "Enviando..." : "Enviar para o admin"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-4 text-slate-900 sm:p-6">
@@ -204,6 +303,13 @@ export default function DepoisPage() {
         <div className="mt-6 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-sm font-extrabold text-slate-800">Assinaturas da finalização</p>
 
+          {os.feedback_admin && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+              <p className="font-bold">Admin pediu correção</p>
+              <p>{os.feedback_admin}</p>
+            </div>
+          )}
+
           <SignaturePad label="Assinatura do técnico" value={assinaturaTecnico} onChange={setAssinaturaTecnico} />
 
           <div className="flex items-center gap-2 text-sm">
@@ -253,11 +359,14 @@ export default function DepoisPage() {
         </div>
 
         <button
-          onClick={salvarDepoisEFinalizar}
+          onClick={async () => {
+            const salvo = await salvarDepoisRascunho();
+            if (salvo) setRevisando(true);
+          }}
           disabled={salvando || fotos.length < 1 || fotos.length > 4}
           className="mt-6 w-full rounded-xl bg-emerald-700 px-4 py-3 font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
-          {salvando ? "Salvando..." : "Salvar DEPOIS e Enviar para Validacao"}
+          {salvando ? "Salvando..." : "Revisar antes de enviar ao admin"}
         </button>
         <button
           type="button"
@@ -415,6 +524,19 @@ function SignaturePad({
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function ResumoBloco({ titulo, texto, imagem }: { titulo: string; texto?: string; imagem?: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="mb-2 font-semibold text-slate-800">{titulo}</p>
+      {imagem ? (
+        <img src={imagem} alt={titulo} className="h-32 w-full rounded-lg object-contain bg-white" />
+      ) : (
+        <p className="whitespace-pre-line">{texto || "-"}</p>
       )}
     </div>
   );
