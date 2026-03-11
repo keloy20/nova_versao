@@ -143,7 +143,7 @@ export default function DepoisPage() {
         }),
       });
 
-      alert("OS finalizada com sucesso!");
+      alert("OS finalizada e enviada para validacao do admin!");
       router.push("/tecnico");
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Erro ao finalizar OS");
@@ -267,7 +267,7 @@ export default function DepoisPage() {
           disabled={salvando || fotos.length < 1 || fotos.length > 4}
           className="mt-6 w-full rounded-xl bg-emerald-700 px-4 py-3 font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
-          {salvando ? "Salvando..." : "Salvar DEPOIS e Finalizar OS"}
+          {salvando ? "Salvando..." : "Salvar DEPOIS e Enviar para Validacao"}
         </button>
         <button
           type="button"
