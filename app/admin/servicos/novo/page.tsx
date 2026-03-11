@@ -55,6 +55,7 @@ export default function NovaOSPage() {
   const [mostrarLista, setMostrarLista] = useState(false);
   const [buscaClientesLoading, setBuscaClientesLoading] = useState(false);
   const [buscaClientesErro, setBuscaClientesErro] = useState("");
+  const [clientesCarregados, setClientesCarregados] = useState(false);
 
   const [solicitanteNome, setSolicitanteNome] = useState("");
   const [solicitantesVinculados, setSolicitantesVinculados] = useState<SolicitanteVinculado[]>([]);
@@ -95,6 +96,16 @@ export default function NovaOSPage() {
       .then((data) => setTecnicos(Array.isArray(data) ? (data as Tecnico[]) : []))
       .catch(() => setTecnicos([]));
 
+    apiFetch("/clientes")
+      .then((data) => {
+        setClientesDB(Array.isArray(data) ? dedupeClientes(data as ClienteSugestao[]) : []);
+        setClientesCarregados(true);
+      })
+      .catch(() => {
+        setClientesDB([]);
+        setClientesCarregados(false);
+      });
+
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
@@ -115,20 +126,24 @@ export default function NovaOSPage() {
   async function carregarClientes(nome: string) {
     const query = nome.trim();
     if (query.length < 2) {
-      setClientesDB([]);
       setBuscaClientesErro("");
       setBuscaClientesLoading(false);
       return;
     }
 
     lastQueryRef.current = query;
-    setBuscaClientesLoading(true);
     setBuscaClientesErro("");
+
+    if (clientesCarregados) {
+      return;
+    }
+
+    setBuscaClientesLoading(true);
 
     try {
       const data = await apiFetch(`/clients/suggest?q=${encodeURIComponent(query)}&limit=20`);
       if (lastQueryRef.current !== query) return;
-      setClientesDB(Array.isArray(data) ? (data as ClienteSugestao[]) : []);
+      setClientesDB(Array.isArray(data) ? dedupeClientes(data as ClienteSugestao[]) : []);
     } catch (err: unknown) {
       if (lastQueryRef.current !== query) return;
       setClientesDB([]);
@@ -181,6 +196,16 @@ export default function NovaOSPage() {
     setMostrarLista(false);
     carregarSolicitantesVinculados(c.cliente || "", c.subcliente || "");
   }
+
+  const clientesFiltrados = cliente.trim().length < 2
+    ? []
+    : dedupeClientes(
+        clientesDB.filter((item) => {
+          const termo = cliente.trim().toLowerCase();
+          const texto = `${item.cliente || ""} ${item.subcliente || ""} ${item.unidade || ""} ${item.marca || ""}`.toLowerCase();
+          return texto.includes(termo);
+        })
+      ).slice(0, 20);
 
   function selecionarSolicitanteVinculado(id: string) {
     setSolicitanteVinculadoId(id);
@@ -371,7 +396,7 @@ export default function NovaOSPage() {
             />
           </label>
 
-          {mostrarLista && (buscaClientesLoading || clientesDB.length > 0 || Boolean(buscaClientesErro)) && (
+          {mostrarLista && (buscaClientesLoading || clientesFiltrados.length > 0 || Boolean(buscaClientesErro)) && (
             <div className="max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white sm:col-span-2">
               {buscaClientesLoading && (
                 <p className="px-3 py-2 text-sm text-slate-500">Buscando clientes...</p>
@@ -379,7 +404,7 @@ export default function NovaOSPage() {
               {!buscaClientesLoading && buscaClientesErro && (
                 <p className="px-3 py-2 text-sm text-rose-600">{buscaClientesErro}</p>
               )}
-              {clientesDB.map((c, idx) => (
+              {clientesFiltrados.map((c, idx) => (
                 <button
                   type="button"
                   key={c._id || `${c.cliente || "cliente"}-${c.subcliente || "subcliente"}-${idx}`}
@@ -394,7 +419,7 @@ export default function NovaOSPage() {
                     : ""}
                 </button>
               ))}
-              {!buscaClientesLoading && !buscaClientesErro && clientesDB.length === 0 && (
+              {!buscaClientesLoading && !buscaClientesErro && clientesFiltrados.length === 0 && (
                 <p className="px-3 py-2 text-sm text-slate-500">Nenhum cliente encontrado.</p>
               )}
             </div>
@@ -580,4 +605,22 @@ export default function NovaOSPage() {
       </div>
     </div>
   );
+}
+
+function dedupeClientes(lista: ClienteSugestao[]) {
+  const mapa = new Map<string, ClienteSugestao>();
+
+  for (const item of lista) {
+    const chave = [
+      String(item.cliente || "").trim().toLowerCase(),
+      String(item.subcliente || "").trim().toLowerCase(),
+      String(item.unidade || "").trim().toLowerCase(),
+      String(item.marca || "").trim().toLowerCase(),
+    ].join("|");
+
+    if (!chave.replace(/\|/g, "")) continue;
+    if (!mapa.has(chave)) mapa.set(chave, item);
+  }
+
+  return Array.from(mapa.values());
 }
