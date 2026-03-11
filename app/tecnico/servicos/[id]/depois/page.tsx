@@ -282,13 +282,16 @@ function SignaturePad({
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const width = canvas.parentElement?.clientWidth || 320;
-    const height = 180;
+    const width = Math.max((canvas.parentElement?.clientWidth || 320) - 8, 320);
+    const height = Math.max(Math.min(window.innerHeight - 140, 560), 260);
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     canvas.width = Math.floor(width * ratio);
     canvas.height = Math.floor(height * ratio);
@@ -313,7 +316,7 @@ function SignaturePad({
       ctx.drawImage(image, 0, 0, width, height);
     };
     image.src = value;
-  }, [value]);
+  }, [isOpen, value]);
 
   function getPoint(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -357,26 +360,62 @@ function SignaturePad({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-slate-700">{label}</p>
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100"
-        >
-          Limpar
-        </button>
-      </div>
-      <canvas
-        ref={canvasRef}
-        onPointerDown={startDrawing}
-        onPointerMove={draw}
-        onPointerUp={stopDrawing}
-        onPointerLeave={stopDrawing}
-        onPointerCancel={stopDrawing}
-        className="w-full touch-none rounded-xl border border-slate-300 bg-white"
-      />
-      <p className="text-xs text-slate-500">Assine com o dedo ou mouse dentro do quadro.</p>
+      <p className="text-sm font-semibold text-slate-700">{label}</p>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="w-full rounded-xl border border-slate-300 bg-white p-3 text-left hover:bg-slate-50"
+      >
+        {value ? (
+          <img src={value} alt={label} className="h-28 w-full rounded-lg object-contain" />
+        ) : (
+          <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm font-semibold text-slate-500">
+            Toque para assinar em tela cheia
+          </div>
+        )}
+      </button>
+      <p className="text-xs text-slate-500">Toque no quadro para abrir a assinatura em tela cheia.</p>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 p-3 sm:p-6">
+          <div className="mx-auto flex h-full w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <p className="text-sm font-extrabold text-slate-900 sm:text-base">{label}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onChange("")}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                >
+                  Limpar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 p-4">
+              <div className="h-full rounded-2xl border border-slate-300 bg-white p-1">
+                <canvas
+                  ref={canvasRef}
+                  onPointerDown={startDrawing}
+                  onPointerMove={draw}
+                  onPointerUp={stopDrawing}
+                  onPointerLeave={stopDrawing}
+                  onPointerCancel={stopDrawing}
+                  className="h-full w-full touch-none rounded-xl bg-white"
+                />
+              </div>
+              <p className="mt-3 text-center text-xs text-slate-500">Assine com o dedo por toda a área acima.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
