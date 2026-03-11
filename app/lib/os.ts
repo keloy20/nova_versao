@@ -50,8 +50,8 @@ export function statusLabel(rawStatus?: string | null) {
   if (status === STATUS.ABERTA) return "Aberta";
   if (status === STATUS.EM_ATENDIMENTO) return "Em andamento";
   if (status === STATUS.PAUSADA) return "Pausada";
-  if (status === STATUS.FINALIZADA_PELO_TECNICO) return "Finalizada pelo técnico";
-  if (status === STATUS.VALIDADA_PELO_ADMIN) return "Validada pelo admin";
+  if (status === STATUS.FINALIZADA_PELO_TECNICO) return "Aguardando validação";
+  if (status === STATUS.VALIDADA_PELO_ADMIN) return "Finalizada";
   if (status === STATUS.CANCELADA) return "Cancelada";
   return status;
 }

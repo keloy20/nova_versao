@@ -176,15 +176,8 @@ export default function AdminDashboard() {
             }).length,
       aguardandoValidacao:
         metrics?.total_finalizadas_tecnico ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.FINALIZADA_PELO_TECNICO).length,
-      validadas:
-        metrics?.total_validadas_admin ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.VALIDADA_PELO_ADMIN).length,
       finalizadas:
-        metrics
-          ? (metrics.total_finalizadas_tecnico ?? 0) + (metrics.total_validadas_admin ?? 0)
-          : osList.filter((o) => {
-              const s = normalizeStatus(o.status);
-              return s === STATUS.FINALIZADA_PELO_TECNICO || s === STATUS.VALIDADA_PELO_ADMIN;
-            }).length,
+        metrics?.total_validadas_admin ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.VALIDADA_PELO_ADMIN).length,
     };
   }, [useLegacyDashboard, metrics, osList]);
 
@@ -281,7 +274,6 @@ export default function AdminDashboard() {
             <Card titulo="Pausadas" valor={contadores.pausadas ?? 0} cor="bg-purple-600" />
             <Card titulo="Pendentes" valor={contadores.pendentes ?? 0} cor="bg-indigo-600" />
             <Card titulo="Aguardando validacao" valor={contadores.aguardandoValidacao ?? 0} cor="bg-emerald-600" />
-            <Card titulo="Validadas admin" valor={contadores.validadas ?? 0} cor="bg-cyan-700" />
             <Card titulo="Finalizadas" valor={contadores.finalizadas ?? 0} cor="bg-teal-700" />
           </>
         )}
@@ -302,7 +294,7 @@ export default function AdminDashboard() {
             </>
           ) : (
             <>
-              <option value={STATUS_CONCLUIDAS}>Finalizadas (todas)</option>
+              <option value={STATUS_CONCLUIDAS}>Encerradas (todas)</option>
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
                   {statusLabel(s)}
@@ -340,7 +332,7 @@ export default function AdminDashboard() {
         {mostrarConcluidas && grupos.concluidas.length > 0 && (
           <>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
-              Finalizadas / Validadas
+              Encerradas
             </div>
             {grupos.concluidas.map((os) => renderOsCard(os, useLegacyDashboard, router, baixarOS))}
           </>
