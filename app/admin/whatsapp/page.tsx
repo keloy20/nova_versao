@@ -97,7 +97,7 @@ export default function AdminWhatsappPage() {
               {status?.qr_code ? (
                 <div className="mt-4 flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(status.qr_code)}`}
+                    src={buildQrSrc(status.qr_code)}
                     alt="QR Code do UltraMsg"
                     className="h-[280px] w-[280px] max-w-full"
                   />
@@ -191,4 +191,11 @@ function formatConnectionState(status: WhatsStatus | null) {
   if (status?.initializing) return "Conectando";
   if (status?.has_qr) return "Aguardando QR";
   return "Offline";
+}
+
+function buildQrSrc(qrCode: string) {
+  if (/^https?:\/\//i.test(qrCode) || /^data:image\//i.test(qrCode)) {
+    return qrCode;
+  }
+  return `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(qrCode)}`;
 }
