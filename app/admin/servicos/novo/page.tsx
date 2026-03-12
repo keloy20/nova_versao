@@ -380,14 +380,15 @@ export default function NovaOSPage() {
       const resposta = await apiFetch("/projects/admin/create", {
         method: "POST",
         body: formData,
-      }) as { whatsapp_tecnico?: { queued?: boolean; sid?: string | null; reason?: string; error?: string | null } } | null;
+      }) as { whatsapp_tecnico?: { queued?: boolean; sid?: string | null; reason?: string; error?: string | null; to?: string | null; raw?: unknown } } | null;
 
       const whatsappTecnico = resposta?.whatsapp_tecnico;
       if (whatsappTecnico && whatsappTecnico.queued) {
-        alert("OS criada e WhatsApp do tecnico enviado com sucesso.");
+        alert(`OS criada e WhatsApp do tecnico enviado com sucesso para ${whatsappTecnico.to || "numero cadastrado"}.`);
       } else if (whatsappTecnico && !whatsappTecnico.queued) {
         const motivo = whatsappTecnico.reason || whatsappTecnico.error || "Falha ao enviar mensagem ao tecnico";
-        alert(`OS criada, mas o WhatsApp do tecnico nao foi enviado: ${motivo}`);
+        const extra = whatsappTecnico.raw ? `\nDetalhe: ${JSON.stringify(whatsappTecnico.raw)}` : "";
+        alert(`OS criada, mas o WhatsApp do tecnico nao foi enviado para ${whatsappTecnico.to || "numero cadastrado"}: ${motivo}${extra}`);
       } else {
         alert("OS criada, mas nao houve retorno do envio do WhatsApp do tecnico.");
       }

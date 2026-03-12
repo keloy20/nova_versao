@@ -153,14 +153,15 @@ export default function DetalheOSPage() {
           delivery_email: "",
           delivery_phone_e164: deliveryPhone,
         }),
-      }) as { whatsapp_cliente?: { queued?: boolean; reason?: string; error?: string; status?: string } } | null;
+      }) as { whatsapp_cliente?: { queued?: boolean; reason?: string; error?: string; status?: string; to?: string | null; raw?: unknown } } | null;
 
       const whatsappCliente = resposta?.whatsapp_cliente;
       if (whatsappCliente?.queued) {
-        alert("OS validada pelo admin e WhatsApp do cliente enviado com sucesso.");
+        alert(`OS validada pelo admin e WhatsApp do cliente enviado com sucesso para ${whatsappCliente.to || "numero informado"}.`);
       } else if (whatsappCliente) {
         const motivo = whatsappCliente.reason || whatsappCliente.error || whatsappCliente.status || "Falha ao enviar WhatsApp do cliente";
-        alert(`OS validada, mas o WhatsApp do cliente nao foi enviado: ${motivo}`);
+        const extra = whatsappCliente.raw ? `\nDetalhe: ${JSON.stringify(whatsappCliente.raw)}` : "";
+        alert(`OS validada, mas o WhatsApp do cliente nao foi enviado para ${whatsappCliente.to || "numero informado"}: ${motivo}${extra}`);
       } else {
         alert("OS validada pelo admin");
       }
