@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/app/lib/api";
 
 type WhatsStatus = {
-  provider?: string;
   ready?: boolean;
   initializing?: boolean;
   has_qr?: boolean;
@@ -19,6 +18,7 @@ type WhatsStatus = {
 export default function AdminWhatsappPage() {
   const [status, setStatus] = useState<WhatsStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [restarting, setRestarting] = useState(false);
 
   async function carregarStatus() {
     try {
@@ -37,13 +37,23 @@ export default function AdminWhatsappPage() {
     return () => window.clearInterval(interval);
   }, []);
 
+  async function reiniciarWhats() {
+    try {
+      setRestarting(true);
+      await apiFetch("/admin/whatsapp/restart", { method: "POST" });
+      await carregarStatus();
+    } finally {
+      setRestarting(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-extrabold text-slate-900">WhatsApp Twilio</h2>
-            <p className="text-sm text-slate-500">Status da integracao oficial por API, sem QR Code e sem WhatsApp Web.</p>
+            <h2 className="text-xl font-extrabold text-slate-900">WhatsApp</h2>
+            <p className="text-sm text-slate-500">Conexao, QR Code, fila de envio e diagnostico.</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -52,6 +62,14 @@ export default function AdminWhatsappPage() {
               className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
             >
               Atualizar
+            </button>
+            <button
+              type="button"
+              onClick={reiniciarWhats}
+              disabled={restarting}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:bg-slate-400"
+            >
+              {restarting ? "Reiniciando..." : "Reiniciar Zap"}
             </button>
           </div>
         </div>
@@ -64,39 +82,58 @@ export default function AdminWhatsappPage() {
           <div className="grid gap-3 md:grid-cols-4">
             <StatusCard
               title="Estado"
-              value={status?.ready ? "Conectado" : "Offline"}
-              tone={status?.ready ? "emerald" : "slate"}
+              value={status?.ready ? "Conectado" : status?.has_qr ? "Aguardando QR" : status?.initializing ? "Conectando" : "Offline"}
+              tone={status?.ready ? "emerald" : status?.has_qr ? "amber" : "slate"}
             />
-            <StatusCard title="Provedor" value="Twilio" tone="blue" />
             <StatusCard title="Fila" value={String(status?.queue_size ?? 0)} tone="blue" />
-            <StatusCard title="Configurado" value={status?.ready ? "Sim" : "Nao"} tone="teal" />
-            <StatusCard title="Ultimo erro" value={status?.last_error || "-"} tone="rose" />
+            <StatusCard title="Ultima conexao" value={formatDateTime(status?.connected_at)} tone="teal" />
+            <StatusCard title="Ultima queda" value={formatDateTime(status?.last_disconnect_at)} tone="rose" />
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+          <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-extrabold text-slate-900">QR Code</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Se estiver aguardando QR, abra o WhatsApp no celular e escaneie este codigo.
+              </p>
+
+              {status?.qr_code ? (
+                <div className="mt-4 space-y-4">
+                  <div className="flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(status.qr_code)}`}
+                      alt="QR Code do WhatsApp"
+                      className="h-[280px] w-[280px] max-w-full"
+                    />
+                  </div>
+                  {status.qr_ascii ? (
+                    <pre className="overflow-auto rounded-2xl bg-slate-950 p-4 text-[7px] leading-[7px] text-white sm:text-[8px] sm:leading-[8px]">
+                      {status.qr_ascii}
+                    </pre>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                  {status?.ready ? "WhatsApp ja conectado. Nenhum QR pendente." : "Nenhum QR disponivel no momento."}
+                </div>
+              )}
+            </div>
+
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-extrabold text-slate-900">Diagnostico</p>
               <div className="mt-4 space-y-3 text-sm text-slate-700">
                 <InfoLine label="Pronto" value={status?.ready ? "Sim" : "Nao"} />
-                <InfoLine label="Provedor" value="Twilio" />
+                <InfoLine label="Inicializando" value={status?.initializing ? "Sim" : "Nao"} />
+                <InfoLine label="Tem QR" value={status?.has_qr ? "Sim" : "Nao"} />
                 <InfoLine label="Fila de envio" value={String(status?.queue_size ?? 0)} />
                 <InfoLine label="Ultimo erro" value={status?.last_error || "-"} />
               </div>
 
               <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
                 <p className="font-bold">Como usar</p>
-                <p className="mt-1">1. Configure as variaveis `TWILIO_*` no Render.</p>
-                <p>2. O numero de destino precisa ter feito o join do sandbox.</p>
-                <p>3. As mensagens saem direto pela API da Twilio.</p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-extrabold text-slate-900">Variaveis necessarias</p>
-              <div className="mt-4 space-y-3 text-sm text-slate-700">
-                <InfoLine label="TWILIO_ACCOUNT_SID" value={status?.ready ? "Configurado" : "Obrigatorio"} />
-                <InfoLine label="TWILIO_AUTH_TOKEN" value={status?.ready ? "Configurado" : "Obrigatorio"} />
-                <InfoLine label="TWILIO_WHATSAPP_FROM" value="whatsapp:+14155238886" />
+                <p className="mt-1">1. Se aparecer QR, escaneie com o celular.</p>
+                <p>2. Quando ficar conectado, as mensagens saem direto pelo backend.</p>
+                <p>3. Nao precisa abrir WhatsApp Web nem clicar em `wa.me`.</p>
               </div>
             </div>
           </div>
@@ -131,4 +168,18 @@ function InfoLine({ label, value }: { label: string; value: string }) {
       <p className="font-semibold text-slate-800">{value || "-"}</p>
     </div>
   );
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
 }
