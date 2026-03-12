@@ -157,27 +157,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <div className={`rounded-xl border px-3 py-2 text-xs font-bold ${
                 whatsStatus?.ready
                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : whatsStatus?.has_qr
-                    ? "border-amber-200 bg-amber-50 text-amber-700"
                   : "border-slate-200 bg-slate-50 text-slate-600"
               }`}>
-                WhatsApp {whatsStatus?.provider === "ultramsg" ? "UltraMsg" : "offline"} {whatsStatus?.ready ? "conectado" : whatsStatus?.has_qr ? "aguardando QR" : whatsStatus?.initializing ? "conectando" : "offline"}
-                {typeof whatsStatus?.queue_size === "number" ? ` • fila ${whatsStatus.queue_size}` : ""}
+                WhatsApp {whatsStatus?.provider === "2chat" ? "2Chat" : "offline"} {whatsStatus?.ready ? "configurado" : "nao configurado"}
               </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await apiFetch("/admin/whatsapp/restart", { method: "POST" });
-                    await carregarWhatsStatus();
-                  } catch {
-                    // noop
-                  }
-                }}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
-              >
-                Reiniciar Zap
-              </button>
               <button
                 onClick={() => router.push("/admin/servicos/novo")}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-800"

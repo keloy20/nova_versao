@@ -7,25 +7,15 @@ type WhatsStatus = {
   provider?: string;
   ready?: boolean;
   initializing?: boolean;
-  has_qr?: boolean;
-  qr_code?: string | null;
-  queue_size?: number;
   last_error?: string | null;
-  connected_at?: string | null;
-  last_disconnect_at?: string | null;
   connection_state?: string;
-  instance_id?: string | null;
+  from_number?: string | null;
   base_url?: string | null;
-  raw_status?: unknown;
-  recent_sent?: unknown[];
-  recent_invalid?: unknown[];
 };
 
 export default function AdminWhatsappPage() {
   const [status, setStatus] = useState<WhatsStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [restarting, setRestarting] = useState(false);
-  const [forcingQr, setForcingQr] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const [testMessage, setTestMessage] = useState("Teste enviado pelo sistema SERTECH.");
   const [sendingTest, setSendingTest] = useState(false);
@@ -46,26 +36,6 @@ export default function AdminWhatsappPage() {
     const interval = window.setInterval(carregarStatus, 5000);
     return () => window.clearInterval(interval);
   }, []);
-
-  async function reiniciarInstancia() {
-    try {
-      setRestarting(true);
-      await apiFetch("/admin/whatsapp/restart", { method: "POST" });
-      await carregarStatus();
-    } finally {
-      setRestarting(false);
-    }
-  }
-
-  async function forcarNovoQr() {
-    try {
-      setForcingQr(true);
-      await apiFetch("/admin/whatsapp/logout", { method: "POST" });
-      await carregarStatus();
-    } finally {
-      setForcingQr(false);
-    }
-  }
 
   async function enviarTeste() {
     if (!testPhone.trim() || !testMessage.trim()) {
@@ -100,8 +70,8 @@ export default function AdminWhatsappPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-extrabold text-slate-900">WhatsApp UltraMsg</h2>
-            <p className="text-sm text-slate-500">Status da instancia remota usada para enviar mensagens do sistema.</p>
+            <h2 className="text-xl font-extrabold text-slate-900">WhatsApp 2Chat</h2>
+            <p className="text-sm text-slate-500">Canal de envio via 2Chat com o numero conectado fora do sistema.</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -110,22 +80,6 @@ export default function AdminWhatsappPage() {
               className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
             >
               Atualizar
-            </button>
-            <button
-              type="button"
-              onClick={reiniciarInstancia}
-              disabled={restarting}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:bg-slate-400"
-            >
-              {restarting ? "Reiniciando..." : "Reiniciar instancia"}
-            </button>
-            <button
-              type="button"
-              onClick={forcarNovoQr}
-              disabled={forcingQr}
-              className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-800 hover:bg-amber-100 disabled:bg-amber-100"
-            >
-              {forcingQr ? "Forcando..." : "Forcar novo QR"}
             </button>
           </div>
         </div>
@@ -136,99 +90,55 @@ export default function AdminWhatsappPage() {
       {!loading && (
         <>
           <div className="grid gap-3 md:grid-cols-4">
-            <StatusCard title="Estado" value={formatConnectionState(status)} tone={status?.ready ? "emerald" : status?.has_qr ? "amber" : "slate"} />
-            <StatusCard title="Provedor" value="UltraMsg" tone="blue" />
-            <StatusCard title="Instancia" value={status?.instance_id || "-"} tone="teal" />
+            <StatusCard title="Estado" value={status?.ready ? "Configurado" : "Nao configurado"} tone={status?.ready ? "emerald" : "slate"} />
+            <StatusCard title="Provedor" value="2Chat" tone="blue" />
+            <StatusCard title="Numero origem" value={status?.from_number ? `+${status.from_number}` : "-"} tone="teal" />
             <StatusCard title="Ultimo erro" value={status?.last_error || "-"} tone="rose" />
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-extrabold text-slate-900">QR Code</p>
-              <p className="mt-1 text-sm text-slate-500">Se a instancia estiver aguardando leitura, escaneie o QR com o celular do admin.</p>
-
-              {status?.qr_code ? (
-                <div className="mt-4 flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
-                  <img
-                    src={buildQrSrc(status.qr_code)}
-                    alt="QR Code do UltraMsg"
-                    className="h-[280px] w-[280px] max-w-full"
-                  />
-                </div>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                  {status?.ready ? "Instancia conectada. Nenhum QR pendente." : "Nenhum QR disponivel no momento."}
-                </div>
-              )}
-            </div>
-
+          <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-extrabold text-slate-900">Diagnostico</p>
               <div className="mt-4 space-y-3 text-sm text-slate-700">
                 <InfoLine label="Pronto" value={status?.ready ? "Sim" : "Nao"} />
-                <InfoLine label="Inicializando" value={status?.initializing ? "Sim" : "Nao"} />
-                <InfoLine label="Estado atual" value={formatConnectionState(status)} />
-                <InfoLine label="Tem QR" value={status?.has_qr ? "Sim" : "Nao"} />
-                <InfoLine label="Ultima conexao" value={formatDateTime(status?.connected_at)} />
-                <InfoLine label="Ultima queda" value={formatDateTime(status?.last_disconnect_at)} />
+                <InfoLine label="Estado atual" value={status?.connection_state || "-"} />
+                <InfoLine label="Numero origem" value={status?.from_number ? `+${status.from_number}` : "-"} />
                 <InfoLine label="Base URL" value={status?.base_url || "-"} />
+                <InfoLine label="Ultimo erro" value={status?.last_error || "-"} />
               </div>
 
               <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
                 <p className="font-bold">Como usar</p>
-                <p className="mt-1">1. Configure `ULTRAMSG_BASE_URL`, `ULTRAMSG_INSTANCE_ID` e `ULTRAMSG_TOKEN` no Render.</p>
-                <p>2. Se o UltraMsg pedir QR, escaneie com o celular do numero que vai enviar.</p>
-                <p>3. Com a instancia conectada, o sistema envia para tecnico e cliente sem depender do navegador.</p>
+                <p className="mt-1">1. Configure `TWOCHAT_API_KEY` e `TWOCHAT_FROM_NUMBER` no Render.</p>
+                <p>2. Mantenha o canal conectado na 2Chat.</p>
+                <p>3. Use o teste abaixo para validar antes de abrir OS reais.</p>
               </div>
             </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-extrabold text-slate-900">Resposta bruta da instancia</p>
-            <pre className="mt-4 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-white">
-              {JSON.stringify(status?.raw_status ?? null, null, 2)}
-            </pre>
-          </div>
-
-          <div className="grid gap-5 xl:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-extrabold text-slate-900">Ultimas enviadas</p>
-              <pre className="mt-4 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-white">
-                {JSON.stringify(status?.recent_sent ?? [], null, 2)}
-              </pre>
-            </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-extrabold text-slate-900">Ultimas invalidas</p>
-              <pre className="mt-4 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-white">
-                {JSON.stringify(status?.recent_invalid ?? [], null, 2)}
-              </pre>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-extrabold text-slate-900">Enviar teste pelo sistema</p>
-            <div className="mt-4 grid gap-3">
-              <input
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
-                placeholder="Telefone com DDD"
-                value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
-              />
-              <textarea
-                className="min-h-28 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
-                placeholder="Mensagem"
-                value={testMessage}
-                onChange={(e) => setTestMessage(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={enviarTeste}
-                disabled={sendingTest}
-                className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:bg-blue-400"
-              >
-                {sendingTest ? "Enviando..." : "Enviar teste"}
-              </button>
+              <p className="text-sm font-extrabold text-slate-900">Enviar teste pelo sistema</p>
+              <div className="mt-4 grid gap-3">
+                <input
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                  placeholder="Telefone com DDD"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                />
+                <textarea
+                  className="min-h-28 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                  placeholder="Mensagem"
+                  value={testMessage}
+                  onChange={(e) => setTestMessage(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={enviarTeste}
+                  disabled={sendingTest}
+                  className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:bg-blue-400"
+                >
+                  {sendingTest ? "Enviando..." : "Enviar teste"}
+                </button>
+              </div>
             </div>
           </div>
         </>
@@ -237,10 +147,9 @@ export default function AdminWhatsappPage() {
   );
 }
 
-function StatusCard({ title, value, tone }: { title: string; value: string; tone: "emerald" | "amber" | "slate" | "blue" | "teal" | "rose" }) {
+function StatusCard({ title, value, tone }: { title: string; value: string; tone: "emerald" | "slate" | "blue" | "teal" | "rose" }) {
   const tones = {
     emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    amber: "border-amber-200 bg-amber-50 text-amber-700",
     slate: "border-slate-200 bg-slate-50 text-slate-700",
     blue: "border-blue-200 bg-blue-50 text-blue-700",
     teal: "border-teal-200 bg-teal-50 text-teal-700",
@@ -262,42 +171,4 @@ function InfoLine({ label, value }: { label: string; value: string }) {
       <p className="font-semibold text-slate-800">{value || "-"}</p>
     </div>
   );
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date);
-}
-
-function formatConnectionState(status: WhatsStatus | null) {
-  if (status?.ready) return "Conectado";
-
-  const state = String(status?.connection_state || "").trim().toLowerCase();
-  if (state === "authenticated") return "Conectado";
-  if (state === "connected") return "Conectado";
-  if (state === "online") return "Conectado";
-  if (state === "qr") return "Aguardando QR";
-  if (state === "waiting_qr") return "Aguardando QR";
-  if (state === "scan_qr") return "Aguardando QR";
-  if (state === "erro") return "Erro";
-  if (state === "nao_configurado") return "Nao configurado";
-  if (status?.initializing) return "Conectando";
-  if (status?.has_qr) return "Aguardando QR";
-  return "Offline";
-}
-
-function buildQrSrc(qrCode: string) {
-  if (/^https?:\/\//i.test(qrCode) || /^data:image\//i.test(qrCode)) {
-    return qrCode;
-  }
-  return `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(qrCode)}`;
 }
