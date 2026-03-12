@@ -17,6 +17,8 @@ type WhatsStatus = {
   instance_id?: string | null;
   base_url?: string | null;
   raw_status?: unknown;
+  recent_sent?: unknown[];
+  recent_invalid?: unknown[];
 };
 
 export default function AdminWhatsappPage() {
@@ -186,6 +188,22 @@ export default function AdminWhatsappPage() {
             <pre className="mt-4 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-white">
               {JSON.stringify(status?.raw_status ?? null, null, 2)}
             </pre>
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-extrabold text-slate-900">Ultimas enviadas</p>
+              <pre className="mt-4 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-white">
+                {JSON.stringify(status?.recent_sent ?? [], null, 2)}
+              </pre>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-extrabold text-slate-900">Ultimas invalidas</p>
+              <pre className="mt-4 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-white">
+                {JSON.stringify(status?.recent_invalid ?? [], null, 2)}
+              </pre>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
