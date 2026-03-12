@@ -243,6 +243,10 @@ export default function NovaOSPage() {
       return;
     }
 
+    if (!resolveExactCliente(clienteBusca, clientesDB)) {
+      return;
+    }
+
     const registro = findClienteRegistro({
       cliente,
       subcliente,
@@ -438,12 +442,6 @@ export default function NovaOSPage() {
                 setBuscaClientesErro("");
 
                 const query = v.trim();
-                const match = resolveSmartCliente(query, clientesDB);
-                if (match) {
-                  selecionarClienteDB(match);
-                  return;
-                }
-
                 if (debounceRef.current) clearTimeout(debounceRef.current);
                 if (query.length >= 1) {
                   setMostrarLista(true);
@@ -456,7 +454,7 @@ export default function NovaOSPage() {
                 }
               }}
               onBlur={() => {
-                const match = resolveSmartCliente(clienteBusca, clientesDB);
+                const match = resolveExactCliente(clienteBusca, clientesDB);
                 if (match) selecionarClienteDB(match);
                 setTimeout(() => setMostrarLista(false), 150);
               }}
@@ -744,23 +742,14 @@ function buildClienteSearchText(item: ClienteSugestao) {
   ].join(" ");
 }
 
-function resolveSmartCliente(query: string, options: ClienteSugestao[]) {
+function resolveExactCliente(query: string, options: ClienteSugestao[]) {
   const q = normalizeText(query);
   if (!q) return null;
 
-  const matches = dedupeClientes(options).filter((item) => normalizeText(buildClienteSearchText(item)).includes(q));
-  if (matches.length === 1) return matches[0];
-
-  const exact = matches.find((item) => normalizeText(formatClienteLabel(item)) === q);
-  if (exact) return exact;
-
-  const exactByAddress = matches.find((item) => {
-    const endereco = normalizeText(item.endereco || item.address_full || "");
-    return Boolean(endereco) && `${normalizeText(item.cliente || "")} ${endereco}`.includes(q);
-  });
-  if (exactByAddress) return exactByAddress;
-
-  return null;
+  return (
+    dedupeClientes(options).find((item) => normalizeText(formatClienteLabel(item)) === q) ||
+    null
+  );
 }
 
 function findClienteRegistro({
