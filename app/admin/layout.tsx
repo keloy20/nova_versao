@@ -31,6 +31,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   >([]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [whatsStatus, setWhatsStatus] = useState<{
+    provider?: string;
     ready?: boolean;
     initializing?: boolean;
     has_qr?: boolean;
@@ -85,15 +86,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       window.removeEventListener("focus", onFocus);
     };
   }, [pathname]);
-
-  async function reiniciarWhats() {
-    try {
-      await apiFetch("/admin/whatsapp/restart", { method: "POST" });
-      await carregarWhatsStatus();
-    } catch {
-      // noop
-    }
-  }
 
   async function marcarLida(id: string) {
     try {
@@ -165,20 +157,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <div className={`rounded-xl border px-3 py-2 text-xs font-bold ${
                 whatsStatus?.ready
                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : whatsStatus?.has_qr
-                    ? "border-amber-200 bg-amber-50 text-amber-700"
-                    : "border-slate-200 bg-slate-50 text-slate-600"
+                  : "border-slate-200 bg-slate-50 text-slate-600"
               }`}>
-                WhatsApp {whatsStatus?.ready ? "conectado" : whatsStatus?.has_qr ? "aguardando QR" : whatsStatus?.initializing ? "conectando" : "offline"}
-                {typeof whatsStatus?.queue_size === "number" ? ` • fila ${whatsStatus.queue_size}` : ""}
+                WhatsApp {whatsStatus?.provider === "twilio" ? "Twilio" : "desconhecido"} {whatsStatus?.ready ? "conectado" : "offline"}
               </div>
-              <button
-                type="button"
-                onClick={reiniciarWhats}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
-              >
-                Reiniciar Zap
-              </button>
               <button
                 onClick={() => router.push("/admin/servicos/novo")}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-800"
