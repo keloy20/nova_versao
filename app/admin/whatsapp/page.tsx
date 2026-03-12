@@ -4,16 +4,18 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/app/lib/api";
 
 type WhatsStatus = {
+  provider?: string;
   ready?: boolean;
   initializing?: boolean;
-  connection_state?: string;
   has_qr?: boolean;
   qr_code?: string | null;
-  qr_ascii?: string | null;
   queue_size?: number;
   last_error?: string | null;
   connected_at?: string | null;
   last_disconnect_at?: string | null;
+  connection_state?: string;
+  instance_id?: string | null;
+  base_url?: string | null;
 };
 
 export default function AdminWhatsappPage() {
@@ -34,11 +36,11 @@ export default function AdminWhatsappPage() {
 
   useEffect(() => {
     carregarStatus();
-    const interval = window.setInterval(carregarStatus, 3000);
+    const interval = window.setInterval(carregarStatus, 5000);
     return () => window.clearInterval(interval);
   }, []);
 
-  async function reiniciarWhats() {
+  async function reiniciarInstancia() {
     try {
       setRestarting(true);
       await apiFetch("/admin/whatsapp/restart", { method: "POST" });
@@ -53,8 +55,8 @@ export default function AdminWhatsappPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-extrabold text-slate-900">WhatsApp</h2>
-            <p className="text-sm text-slate-500">Conexao, QR Code, fila de envio e diagnostico.</p>
+            <h2 className="text-xl font-extrabold text-slate-900">WhatsApp UltraMsg</h2>
+            <p className="text-sm text-slate-500">Status da instancia remota usada para enviar mensagens do sistema.</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -66,11 +68,11 @@ export default function AdminWhatsappPage() {
             </button>
             <button
               type="button"
-              onClick={reiniciarWhats}
+              onClick={reiniciarInstancia}
               disabled={restarting}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:bg-slate-400"
             >
-              {restarting ? "Reiniciando..." : "Reiniciar Zap"}
+              {restarting ? "Reiniciando..." : "Reiniciar instancia"}
             </button>
           </div>
         </div>
@@ -81,41 +83,28 @@ export default function AdminWhatsappPage() {
       {!loading && (
         <>
           <div className="grid gap-3 md:grid-cols-4">
-            <StatusCard
-              title="Estado"
-              value={formatConnectionState(status)}
-              tone={status?.ready ? "emerald" : status?.has_qr ? "amber" : "slate"}
-            />
-            <StatusCard title="Fila" value={String(status?.queue_size ?? 0)} tone="blue" />
-            <StatusCard title="Ultima conexao" value={formatDateTime(status?.connected_at)} tone="teal" />
-            <StatusCard title="Ultima queda" value={formatDateTime(status?.last_disconnect_at)} tone="rose" />
+            <StatusCard title="Estado" value={formatConnectionState(status)} tone={status?.ready ? "emerald" : status?.has_qr ? "amber" : "slate"} />
+            <StatusCard title="Provedor" value="UltraMsg" tone="blue" />
+            <StatusCard title="Instancia" value={status?.instance_id || "-"} tone="teal" />
+            <StatusCard title="Ultimo erro" value={status?.last_error || "-"} tone="rose" />
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-extrabold text-slate-900">QR Code</p>
-              <p className="mt-1 text-sm text-slate-500">
-                Se estiver aguardando QR, abra o WhatsApp no celular e escaneie este codigo.
-              </p>
+              <p className="mt-1 text-sm text-slate-500">Se a instancia estiver aguardando leitura, escaneie o QR com o celular do admin.</p>
 
               {status?.qr_code ? (
-                <div className="mt-4 space-y-4">
-                  <div className="flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(status.qr_code)}`}
-                      alt="QR Code do WhatsApp"
-                      className="h-[280px] w-[280px] max-w-full"
-                    />
-                  </div>
-                  {status.qr_ascii ? (
-                    <pre className="overflow-auto rounded-2xl bg-slate-950 p-4 text-[7px] leading-[7px] text-white sm:text-[8px] sm:leading-[8px]">
-                      {status.qr_ascii}
-                    </pre>
-                  ) : null}
+                <div className="mt-4 flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(status.qr_code)}`}
+                    alt="QR Code do UltraMsg"
+                    className="h-[280px] w-[280px] max-w-full"
+                  />
                 </div>
               ) : (
                 <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                  {status?.ready ? "WhatsApp ja conectado. Nenhum QR pendente." : "Nenhum QR disponivel no momento."}
+                  {status?.ready ? "Instancia conectada. Nenhum QR pendente." : "Nenhum QR disponivel no momento."}
                 </div>
               )}
             </div>
@@ -127,15 +116,16 @@ export default function AdminWhatsappPage() {
                 <InfoLine label="Inicializando" value={status?.initializing ? "Sim" : "Nao"} />
                 <InfoLine label="Estado atual" value={formatConnectionState(status)} />
                 <InfoLine label="Tem QR" value={status?.has_qr ? "Sim" : "Nao"} />
-                <InfoLine label="Fila de envio" value={String(status?.queue_size ?? 0)} />
-                <InfoLine label="Ultimo erro" value={status?.last_error || "-"} />
+                <InfoLine label="Ultima conexao" value={formatDateTime(status?.connected_at)} />
+                <InfoLine label="Ultima queda" value={formatDateTime(status?.last_disconnect_at)} />
+                <InfoLine label="Base URL" value={status?.base_url || "-"} />
               </div>
 
               <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
                 <p className="font-bold">Como usar</p>
-                <p className="mt-1">1. Se aparecer QR, escaneie com o celular.</p>
-                <p>2. Quando ficar conectado, as mensagens saem direto pelo backend.</p>
-                <p>3. Nao precisa abrir WhatsApp Web nem clicar em `wa.me`.</p>
+                <p className="mt-1">1. Configure `ULTRAMSG_BASE_URL`, `ULTRAMSG_INSTANCE_ID` e `ULTRAMSG_TOKEN` no Render.</p>
+                <p>2. Se o UltraMsg pedir QR, escaneie com o celular do numero que vai enviar.</p>
+                <p>3. Com a instancia conectada, o sistema envia para tecnico e cliente sem depender do navegador.</p>
               </div>
             </div>
           </div>
@@ -190,13 +180,14 @@ function formatConnectionState(status: WhatsStatus | null) {
   if (status?.ready) return "Conectado";
 
   const state = String(status?.connection_state || "").trim().toLowerCase();
-  if (state === "aguardando_qr") return "Aguardando QR";
-  if (state === "autenticado") return "Autenticado";
-  if (state === "sincronizando") return "Sincronizando";
-  if (state === "reconectando") return "Reconectando";
-  if (state === "reiniciando") return "Reiniciando";
-  if (state === "falha_autenticacao") return "Falha autenticacao";
-  if (state === "iniciando") return "Iniciando";
+  if (state === "authenticated") return "Conectado";
+  if (state === "connected") return "Conectado";
+  if (state === "online") return "Conectado";
+  if (state === "qr") return "Aguardando QR";
+  if (state === "waiting_qr") return "Aguardando QR";
+  if (state === "scan_qr") return "Aguardando QR";
+  if (state === "erro") return "Erro";
+  if (state === "nao_configurado") return "Nao configurado";
   if (status?.initializing) return "Conectando";
   if (status?.has_qr) return "Aguardando QR";
   return "Offline";

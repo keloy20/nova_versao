@@ -31,6 +31,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   >([]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [whatsStatus, setWhatsStatus] = useState<{
+    provider?: string;
     ready?: boolean;
     initializing?: boolean;
     has_qr?: boolean;
@@ -160,7 +161,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     ? "border-amber-200 bg-amber-50 text-amber-700"
                   : "border-slate-200 bg-slate-50 text-slate-600"
               }`}>
-                WhatsApp {whatsStatus?.ready ? "conectado" : whatsStatus?.has_qr ? "aguardando QR" : whatsStatus?.initializing ? "conectando" : "offline"}
+                WhatsApp {whatsStatus?.provider === "ultramsg" ? "UltraMsg" : "offline"} {whatsStatus?.ready ? "conectado" : whatsStatus?.has_qr ? "aguardando QR" : whatsStatus?.initializing ? "conectando" : "offline"}
                 {typeof whatsStatus?.queue_size === "number" ? ` • fila ${whatsStatus.queue_size}` : ""}
               </div>
               <button
