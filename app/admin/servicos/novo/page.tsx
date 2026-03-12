@@ -383,9 +383,13 @@ export default function NovaOSPage() {
       }) as { whatsapp_tecnico?: { queued?: boolean; sid?: string | null; reason?: string; error?: string | null } } | null;
 
       const whatsappTecnico = resposta?.whatsapp_tecnico;
-      if (whatsappTecnico && !whatsappTecnico.queued) {
+      if (whatsappTecnico && whatsappTecnico.queued) {
+        alert("OS criada e WhatsApp do tecnico enviado com sucesso.");
+      } else if (whatsappTecnico && !whatsappTecnico.queued) {
         const motivo = whatsappTecnico.reason || whatsappTecnico.error || "Falha ao enviar mensagem ao tecnico";
         alert(`OS criada, mas o WhatsApp do tecnico nao foi enviado: ${motivo}`);
+      } else {
+        alert("OS criada, mas nao houve retorno do envio do WhatsApp do tecnico.");
       }
 
       router.push("/admin");
