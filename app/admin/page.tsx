@@ -43,6 +43,7 @@ export default function AdminDashboard() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewLabel, setPreviewLabel] = useState("");
+  const [filtersReady, setFiltersReady] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -91,28 +92,32 @@ export default function AdminDashboard() {
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(ADMIN_DASHBOARD_FILTERS_KEY);
-      if (!saved) return;
-      const parsed = JSON.parse(saved) as {
-        statusFiltro?: string;
-        busca?: string;
-        dataInicio?: string;
-        dataFim?: string;
-      };
-      setStatusFiltro(parsed.statusFiltro || "");
-      setBusca(parsed.busca || "");
-      setDataInicio(parsed.dataInicio || "");
-      setDataFim(parsed.dataFim || "");
+      if (saved) {
+        const parsed = JSON.parse(saved) as {
+          statusFiltro?: string;
+          busca?: string;
+          dataInicio?: string;
+          dataFim?: string;
+        };
+        setStatusFiltro(parsed.statusFiltro || "");
+        setBusca(parsed.busca || "");
+        setDataInicio(parsed.dataInicio || "");
+        setDataFim(parsed.dataFim || "");
+      }
     } catch {
       // noop
+    } finally {
+      setFiltersReady(true);
     }
   }, []);
 
   useEffect(() => {
+    if (!filtersReady) return;
     sessionStorage.setItem(
       ADMIN_DASHBOARD_FILTERS_KEY,
       JSON.stringify({ statusFiltro, busca, dataInicio, dataFim })
     );
-  }, [statusFiltro, busca, dataInicio, dataFim]);
+  }, [filtersReady, statusFiltro, busca, dataInicio, dataFim]);
 
   async function baixarOS(os: OSItem) {
     try {
@@ -190,19 +195,21 @@ export default function AdminDashboard() {
   }
 
   const listaBaseDashboard = useMemo(() => {
-    return osList.filter((os) => {
-      const texto = `
-        ${os.cliente || ""}
-        ${os.subcliente || os.Subcliente || os.subgrupo || ""}
-        ${os.unidade || ""}
-        ${os.marca || ""}
-        ${os.osNumero || ""}
-        ${typeof os.tecnico === "object" ? os.tecnico?.nome || "" : os.tecnico || ""}
-        ${os.solicitante_nome || ""}
-        ${os.tipo_manutencao || ""}
-      `.toLowerCase();
+    const query = normalizeSearch(busca);
+    const tecnicoMode =
+      Boolean(query) &&
+      osList.some((os) => normalizeSearch(getTecnicoNome(os)).includes(query));
 
-      if (busca && !texto.includes(busca.toLowerCase())) return false;
+    return osList.filter((os) => {
+      const texto = buildOsSearchText(os);
+
+      if (query) {
+        if (tecnicoMode) {
+          if (!normalizeSearch(getTecnicoNome(os)).includes(query)) return false;
+        } else if (!texto.includes(query)) {
+          return false;
+        }
+      }
 
       const dataBase = new Date(os.data_abertura || os.createdAt || "");
       if (dataInicio && dataBase < new Date(`${dataInicio}T00:00:00`)) return false;
@@ -435,10 +442,9 @@ function renderOsCard(
   onPreview: (os: OSItem) => void
 ) {
   const tecnicoNome =
-    (typeof os.tecnico === "object" ? os.tecnico?.nome : os.tecnico) ||
-    os.tecnicoNome ||
-    "Não definido";
+    getTecnicoNome(os) || "Não definido";
   const osId = os._id || os.id;
+  const clienteLinha = getClienteLinha(os);
 
   if (!osId) return null;
 
@@ -450,7 +456,7 @@ function renderOsCard(
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-lg font-extrabold text-slate-900">{os.osNumero || "Sem número"}</p>
-          <p className="text-sm font-semibold text-slate-700">{os.cliente || "Sem cliente"}</p>
+          <p className="text-sm font-semibold text-slate-700">{clienteLinha}</p>
         </div>
         <span
           className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -505,6 +511,46 @@ function renderOsCard(
       </div>
     </div>
   );
+}
+
+function getTecnicoNome(os: OSItem) {
+  return (typeof os.tecnico === "object" ? os.tecnico?.nome : os.tecnico) || os.tecnicoNome || "";
+}
+
+function normalizeSearch(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function buildOsSearchText(os: OSItem) {
+  return normalizeSearch(
+    [
+      os.cliente || "",
+      os.subcliente || os.Subcliente || os.subgrupo || "",
+      os.unidade || "",
+      os.marca || "",
+      os.osNumero || "",
+      getTecnicoNome(os),
+      os.solicitante_nome || "",
+      os.tipo_manutencao || "",
+    ].join(" ")
+  );
+}
+
+function getClienteLinha(os: OSItem) {
+  const cliente = os.cliente || "Sem cliente";
+  const isDasa = normalizeSearch(cliente) === "dasa";
+
+  if (isDasa) {
+    const detalhes = [os.marca || "", os.unidade || ""].filter(Boolean).join(" - ");
+    return detalhes ? `${cliente} - ${detalhes}` : cliente;
+  }
+
+  const subcliente = os.subcliente || os.Subcliente || os.subgrupo || "";
+  return subcliente ? `${cliente} - ${subcliente}` : cliente;
 }
 
 function legacyStatusBucket(rawStatus?: string) {
