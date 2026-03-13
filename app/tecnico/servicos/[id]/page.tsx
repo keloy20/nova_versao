@@ -16,6 +16,8 @@ type ServicoDetalhe = {
   osNumero?: string;
   cliente?: string;
   subcliente?: string;
+  endereco?: string;
+  telefone?: string;
   status?: string;
   solicitante_nome?: string;
   tipo_manutencao?: string;
@@ -157,6 +159,7 @@ export default function ServicoPage() {
           <p><b>Início:</b> {formatDate(os.data_inicio_atendimento)}</p>
           <p><b>Pausa:</b> {formatDate(os.data_pausa_atendimento)}</p>
           <p><b>Retomada:</b> {formatDate(os.data_retomada_atendimento)}</p>
+          <p className="sm:col-span-2 lg:col-span-3"><b>Endereço:</b> {os.endereco || "-"}</p>
           {os.botao_ligar_telefone && (
             <p>
               <b>Telefone:</b>{" "}
