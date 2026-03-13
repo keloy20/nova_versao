@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Download, FilePenLine, MapPinned, Phone, RotateCcw, Send, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, FilePenLine, MapPinned, Phone, Printer, RotateCcw, Send, Trash2, XCircle } from "lucide-react";
 import { API_URL, apiFetch, projectOsPath } from "@/app/lib/api";
 import { formatDate, formatDuration, statusBadgeClass, statusLabel, normalizeStatus, STATUS } from "@/app/lib/os";
 
@@ -262,7 +262,7 @@ export default function DetalheOSPage() {
         </div>
 
         <div className="mb-5 flex flex-wrap gap-2">
-          <ActionButton onClick={gerarPDF} icon={<Download size={16} />} variant="primary">
+          <ActionButton onClick={gerarPDF} icon={<Printer size={16} />} variant="primary" iconOnly>
             Gerar PDF
           </ActionButton>
 
@@ -420,11 +420,13 @@ function ActionButton({
   onClick,
   icon,
   variant = "secondary",
+  iconOnly = false,
 }: {
   children: ReactNode;
   onClick: () => void;
   icon: ReactNode;
   variant?: "primary" | "secondary" | "success" | "warning" | "danger" | "dark";
+  iconOnly?: boolean;
 }) {
   const styles = {
     primary: "border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100",
@@ -438,10 +440,12 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${styles[variant]}`}
+      title={typeof children === "string" ? children : undefined}
+      aria-label={typeof children === "string" ? children : undefined}
+      className={`inline-flex items-center justify-center rounded-xl text-sm font-bold transition ${iconOnly ? "h-10 w-10 px-0 py-0" : "gap-2 px-4 py-2"} ${styles[variant]}`}
     >
       {icon}
-      {children}
+      {!iconOnly && children}
     </button>
   );
 }

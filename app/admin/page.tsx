@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Download, Eye, X } from "lucide-react";
+import { ArrowRight, Eye, Printer, X } from "lucide-react";
 import { API_URL, apiFetch, projectOsPath } from "@/app/lib/api";
 import { formatDate, isOpenStatus, normalizeStatus, statusBadgeClass, statusLabel, STATUS, STATUS_OPTIONS } from "@/app/lib/os";
 
@@ -405,11 +405,13 @@ function ActionButton({
   onClick,
   icon,
   variant = "secondary",
+  iconOnly = false,
 }: {
   label: string;
   onClick: () => void;
   icon: ReactNode;
   variant?: "secondary" | "primary" | "dark";
+  iconOnly?: boolean;
 }) {
   const styles = {
     secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
@@ -420,11 +422,13 @@ function ActionButton({
   return (
     <button
       type="button"
-      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${styles[variant]}`}
+      title={label}
+      aria-label={label}
+      className={`inline-flex items-center justify-center rounded-xl text-xs font-bold transition ${iconOnly ? "h-9 w-9 px-0 py-0" : "gap-2 px-3.5 py-2"} ${styles[variant]}`}
       onClick={onClick}
     >
       {icon}
-      {label}
+      {!iconOnly && label}
     </button>
   );
 }
@@ -484,7 +488,7 @@ function renderOsCard(
       <div className="mt-3 flex justify-end">
         <div className="flex flex-wrap justify-end gap-2">
           <ActionButton label="Preview" icon={<Eye size={14} />} onClick={() => onPreview(os)} />
-          <ActionButton label="Baixar OS" icon={<Download size={14} />} onClick={() => onDownload(os)} variant="primary" />
+          <ActionButton label="Baixar OS" icon={<Printer size={14} />} onClick={() => onDownload(os)} variant="primary" iconOnly />
           <ActionButton label="Ver detalhes" icon={<ArrowRight size={14} />} onClick={() => router.push(`/admin/servicos/${osId}`)} variant="dark" />
         </div>
       </div>
