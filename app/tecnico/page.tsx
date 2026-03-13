@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, MapPinned, Pause, Play } from "lucide-react";
 import { apiFetch, projectOsPath } from "@/app/lib/api";
 import { formatDate, normalizeStatus, statusBadgeClass, statusLabel, STATUS } from "@/app/lib/os";
 
@@ -226,14 +227,18 @@ export default function TecnicoPage() {
                   <p>
                     <b>Início:</b> {formatDate(s.data_inicio_atendimento)}
                   </p>
+                  <p className="sm:col-span-2 lg:col-span-4">
+                    <b>Endereço:</b> {s.endereco || "-"}
+                  </p>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {status === STATUS.ABERTA && (
                     <button
                       onClick={() => mudarStatus(s._id, "iniciar")}
-                      className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
+                      className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
                     >
+                      <Play size={16} />
                       Iniciar atendimento
                     </button>
                   )}
@@ -241,8 +246,9 @@ export default function TecnicoPage() {
                   {status === STATUS.EM_ATENDIMENTO && (
                     <button
                       onClick={() => mudarStatus(s._id, "pausar")}
-                      className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700"
+                      className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700"
                     >
+                      <Pause size={16} />
                       Pausar
                     </button>
                   )}
@@ -250,17 +256,33 @@ export default function TecnicoPage() {
                   {status === STATUS.PAUSADA && (
                     <button
                       onClick={() => mudarStatus(s._id, "retomar")}
-                      className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
+                      className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
                     >
+                      <Play size={16} />
                       Retomar
                     </button>
                   )}
 
+                  {s.endereco && (
+                    <a
+                      href={buildGpsHref(s.endereco)}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Abrir GPS"
+                      aria-label="Abrir GPS"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                    >
+                      <MapPinned size={16} />
+                    </a>
+                  )}
+
                   <button
                     onClick={() => router.push(`/tecnico/servicos/${s._id}`)}
-                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                    title="Ver detalhes"
+                    aria-label="Ver detalhes"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                   >
-                    Ver detalhes
+                    <Eye size={16} />
                   </button>
                 </div>
               </div>
@@ -270,4 +292,8 @@ export default function TecnicoPage() {
       </div>
     </div>
   );
+}
+
+function buildGpsHref(endereco?: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(endereco || "").trim())}`;
 }

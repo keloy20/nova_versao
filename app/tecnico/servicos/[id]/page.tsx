@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, CarFront, CircleStop, MapPinned, Pause, Phone, Play } from "lucide-react";
 import { apiFetch, projectOsPath } from "@/app/lib/api";
 import { formatDate, formatDuration, statusBadgeClass, statusLabel, normalizeStatus, STATUS } from "@/app/lib/os";
 
@@ -147,6 +148,20 @@ export default function ServicoPage() {
           <p><b>Início:</b> {formatDate(os.data_inicio_atendimento)}</p>
           <p><b>Pausa:</b> {formatDate(os.data_pausa_atendimento)}</p>
           <p><b>Retomada:</b> {formatDate(os.data_retomada_atendimento)}</p>
+          {os.botao_gps_endereco && (
+            <p className="sm:col-span-2 lg:col-span-3">
+              <b>Local:</b>{" "}
+              <a
+                href={os.botao_gps_endereco}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 font-semibold text-sky-700 hover:text-sky-800"
+              >
+                <MapPinned size={15} />
+                Abrir rota do cliente
+              </a>
+            </p>
+          )}
         </div>
 
         {os.equipamento_especificacoes && (
@@ -176,8 +191,9 @@ export default function ServicoPage() {
           {podeIniciarDeslocamento && (
             <button
               onClick={() => mudarDeslocamento("iniciar")}
-              className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-600"
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-600"
             >
+              <CarFront size={16} />
               Iniciar deslocamento
             </button>
           )}
@@ -185,8 +201,9 @@ export default function ServicoPage() {
           {podeFinalizarDeslocamento && (
             <button
               onClick={() => mudarDeslocamento("finalizar")}
-              className="rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-700"
             >
+              <CircleStop size={16} />
               Finalizar deslocamento
             </button>
           )}
@@ -194,8 +211,9 @@ export default function ServicoPage() {
           {status === STATUS.ABERTA && (
             <button
               onClick={() => mudarStatus("iniciar")}
-              className="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700"
             >
+              <Play size={16} />
               Iniciar atendimento
             </button>
           )}
@@ -203,8 +221,9 @@ export default function ServicoPage() {
           {status === STATUS.EM_ATENDIMENTO && (
             <button
               onClick={() => mudarStatus("pausar")}
-              className="rounded-xl bg-fuchsia-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-fuchsia-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-fuchsia-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-fuchsia-700"
             >
+              <Pause size={16} />
               Pausar
             </button>
           )}
@@ -212,8 +231,9 @@ export default function ServicoPage() {
           {status === STATUS.PAUSADA && (
             <button
               onClick={() => mudarStatus("retomar")}
-              className="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700"
             >
+              <Play size={16} />
               Retomar
             </button>
           )}
@@ -239,9 +259,11 @@ export default function ServicoPage() {
 
           <button
             onClick={() => router.push("/tecnico")}
-            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100"
+            title="Voltar"
+            aria-label="Voltar"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
           >
-            Voltar
+            <ArrowLeft size={18} />
           </button>
         </div>
 
@@ -283,10 +305,14 @@ export default function ServicoPage() {
         {(os.botao_gps_endereco || os.botao_ligar_telefone) && (
           <div className="mt-4 flex flex-wrap gap-2">
             {os.botao_gps_endereco && (
-              <a href={os.botao_gps_endereco} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Abrir GPS</a>
+              <a href={os.botao_gps_endereco} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">
+                <MapPinned size={16} />
+                Abrir GPS
+              </a>
             )}
             {os.botao_ligar_telefone && (
-              <a href={os.botao_ligar_telefone} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">
+              <a href={os.botao_ligar_telefone} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">
+                <Phone size={16} />
                 Ligar
               </a>
             )}
