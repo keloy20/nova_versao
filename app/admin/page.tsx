@@ -487,9 +487,9 @@ function renderOsCard(
 
       <div className="mt-3 flex justify-end">
         <div className="flex flex-wrap justify-end gap-2">
-          <ActionButton label="Preview" icon={<Eye size={14} />} onClick={() => onPreview(os)} />
+          <ActionButton label="Preview" icon={<Eye size={14} />} onClick={() => onPreview(os)} iconOnly />
           <ActionButton label="Baixar OS" icon={<Printer size={14} />} onClick={() => onDownload(os)} variant="primary" iconOnly />
-          <ActionButton label="Ver detalhes" icon={<ArrowRight size={14} />} onClick={() => router.push(`/admin/servicos/${osId}`)} variant="dark" />
+          <ActionButton label="Ver detalhes" icon={<ArrowRight size={14} />} onClick={() => router.push(`/admin/servicos/${osId}`)} variant="dark" iconOnly />
         </div>
       </div>
     </div>

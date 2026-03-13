@@ -290,19 +290,19 @@ export default function DetalheOSPage() {
 
           {userRole === "admin" && (
             <>
-              <ActionButton onClick={() => router.push(`/admin/servicos/${id}/editar`)} icon={<FilePenLine size={16} />} variant="secondary">
+              <ActionButton onClick={() => router.push(`/admin/servicos/${id}/editar`)} icon={<FilePenLine size={16} />} variant="secondary" iconOnly>
                 Editar
               </ActionButton>
-              <ActionButton onClick={cancelarOS} icon={<XCircle size={16} />} variant="warning">
+              <ActionButton onClick={cancelarOS} icon={<XCircle size={16} />} variant="warning" iconOnly>
                 Cancelar
               </ActionButton>
-              <ActionButton onClick={excluirOS} icon={<Trash2 size={16} />} variant="danger">
+              <ActionButton onClick={excluirOS} icon={<Trash2 size={16} />} variant="danger" iconOnly>
                 Excluir
               </ActionButton>
             </>
           )}
 
-          <ActionButton onClick={() => router.back()} icon={<ArrowLeft size={16} />} variant="secondary">
+          <ActionButton onClick={() => router.back()} icon={<ArrowLeft size={16} />} variant="secondary" iconOnly>
             Voltar
           </ActionButton>
         </div>
