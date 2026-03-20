@@ -70,6 +70,14 @@ export default function AdminGraficosPage() {
 
   const clienteFiltroNormalizado = normalizeFilterText(clienteFiltro);
   const clienteEhDasa = clienteFiltroNormalizado.includes("dasa");
+  const subclienteFiltroNormalizado = normalizeFilterText(subclienteFiltro);
+  const marcaFiltroNormalizado = normalizeFilterText(marcaFiltro);
+  const unidadeFiltroNormalizado = normalizeFilterText(unidadeFiltro);
+
+  const clientesSugestoes = useMemo(() => {
+    if (!clienteFiltroNormalizado) return clientes;
+    return clientes.filter((cliente) => normalizeFilterText(cliente).includes(clienteFiltroNormalizado));
+  }, [clientes, clienteFiltroNormalizado]);
 
   const subclientes = useMemo(() => {
     if (!clienteFiltro || clienteEhDasa) return [];
@@ -82,6 +90,11 @@ export default function AdminGraficosPage() {
       )
     ).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [osList, clienteFiltro, clienteEhDasa, clienteFiltroNormalizado]);
+
+  const subclientesSugestoes = useMemo(() => {
+    if (!subclienteFiltroNormalizado) return subclientes;
+    return subclientes.filter((subcliente) => normalizeFilterText(subcliente).includes(subclienteFiltroNormalizado));
+  }, [subclientes, subclienteFiltroNormalizado]);
 
   const marcas = useMemo(() => {
     if (!clienteEhDasa) return [];
@@ -96,6 +109,11 @@ export default function AdminGraficosPage() {
     ).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [osList, clienteEhDasa, clienteFiltroNormalizado, unidadeFiltro]);
 
+  const marcasSugestoes = useMemo(() => {
+    if (!marcaFiltroNormalizado) return marcas;
+    return marcas.filter((marca) => normalizeFilterText(marca).includes(marcaFiltroNormalizado));
+  }, [marcas, marcaFiltroNormalizado]);
+
   const unidades = useMemo(() => {
     if (!clienteEhDasa) return [];
     return Array.from(
@@ -108,6 +126,11 @@ export default function AdminGraficosPage() {
       )
     ).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [osList, clienteEhDasa, clienteFiltroNormalizado, marcaFiltro]);
+
+  const unidadesSugestoes = useMemo(() => {
+    if (!unidadeFiltroNormalizado) return unidades;
+    return unidades.filter((unidade) => normalizeFilterText(unidade).includes(unidadeFiltroNormalizado));
+  }, [unidades, unidadeFiltroNormalizado]);
 
   const slices = useMemo(
     () => [
@@ -167,7 +190,7 @@ export default function AdminGraficosPage() {
               className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             />
             <datalist id="clientes-grafico">
-              {clientes.map((cliente) => (
+              {clientesSugestoes.map((cliente) => (
                 <option key={cliente} value={cliente} />
               ))}
             </datalist>
@@ -183,7 +206,7 @@ export default function AdminGraficosPage() {
                 className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
               />
               <datalist id="subclientes-grafico">
-                {subclientes.map((subcliente) => (
+                {subclientesSugestoes.map((subcliente) => (
                   <option key={subcliente} value={subcliente} />
                 ))}
               </datalist>
@@ -204,7 +227,7 @@ export default function AdminGraficosPage() {
                   className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
                 <datalist id="marcas-grafico">
-                  {marcas.map((marca) => (
+                  {marcasSugestoes.map((marca) => (
                     <option key={marca} value={marca} />
                   ))}
                 </datalist>
@@ -219,7 +242,7 @@ export default function AdminGraficosPage() {
                   className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
                 <datalist id="unidades-grafico">
-                  {unidades.map((unidade) => (
+                  {unidadesSugestoes.map((unidade) => (
                     <option key={unidade} value={unidade} />
                   ))}
                 </datalist>
@@ -304,9 +327,9 @@ function buildMetricsFromList(
     const unidade = normalizeFilterText(item.unidade);
 
     if (filtros?.cliente && !cliente.includes(normalizeFilterText(filtros.cliente))) return false;
-    if (filtros?.subcliente && subcliente !== normalizeFilterText(filtros.subcliente)) return false;
-    if (filtros?.marca && marca !== normalizeFilterText(filtros.marca)) return false;
-    if (filtros?.unidade && unidade !== normalizeFilterText(filtros.unidade)) return false;
+    if (filtros?.subcliente && !subcliente.includes(normalizeFilterText(filtros.subcliente))) return false;
+    if (filtros?.marca && !marca.includes(normalizeFilterText(filtros.marca))) return false;
+    if (filtros?.unidade && !unidade.includes(normalizeFilterText(filtros.unidade))) return false;
 
     const rawDate = item.data_abertura || item.createdAt;
     if (!rawDate) return false;
