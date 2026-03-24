@@ -452,8 +452,9 @@ function SignaturePad({
       const viewport = window.visualViewport;
       const viewportWidth = viewport?.width || window.innerWidth;
       const viewportHeight = viewport?.height || window.innerHeight;
-      const width = Math.max((container?.clientWidth || viewportWidth) - 4, 320);
-      const height = Math.max((container?.clientHeight || viewportHeight) - 4, 220);
+      const containerRect = container?.getBoundingClientRect();
+      const width = Math.max(Math.floor((containerRect?.width || container?.clientWidth || viewportWidth) - 4), 320);
+      const height = Math.max(Math.floor((containerRect?.height || container?.clientHeight || viewportHeight) - 4), 220);
       const ratio = Math.max(window.devicePixelRatio || 1, 1);
 
       canvas.width = Math.floor(width * ratio);
