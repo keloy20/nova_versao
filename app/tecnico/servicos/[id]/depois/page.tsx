@@ -423,7 +423,6 @@ function SignaturePad({
   const activePointerIdRef = useRef<number | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [draftValue, setDraftValue] = useState(value);
-  const [isPortraitViewport, setIsPortraitViewport] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -431,17 +430,8 @@ function SignaturePad({
     let cancelled = false;
     const modalElement = modalRef.current;
 
-    const atualizarViewport = () => {
-      if (typeof window === "undefined") return;
-      const viewport = window.visualViewport;
-      const width = viewport?.width || window.innerWidth;
-      const height = viewport?.height || window.innerHeight;
-      setIsPortraitViewport(height > width);
-    };
-
     const prepararAssinatura = async () => {
       setDraftValue(value);
-      atualizarViewport();
       await abrirEmTelaCheiaPaisagem(modalElement);
       if (cancelled) return;
 
@@ -483,13 +473,9 @@ function SignaturePad({
     };
 
     void prepararAssinatura();
-    window.addEventListener("resize", atualizarViewport);
-    window.visualViewport?.addEventListener("resize", atualizarViewport);
 
     return () => {
       cancelled = true;
-      window.removeEventListener("resize", atualizarViewport);
-      window.visualViewport?.removeEventListener("resize", atualizarViewport);
       void sairDaTelaCheiaPaisagem(modalElement);
     };
   }, [isOpen, value]);
@@ -581,17 +567,11 @@ function SignaturePad({
 
       {isOpen && (
         <div ref={modalRef} className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 p-0 touch-none select-none sm:p-0">
-          <div
-            className={`bg-white shadow-2xl ${
-              isPortraitViewport
-                ? "absolute left-1/2 top-1/2 flex h-[100vw] w-[100dvh] -translate-x-1/2 -translate-y-1/2 rotate-90 flex-col"
-                : "flex h-full w-full flex-col"
-            }`}
-          >
+          <div className="flex h-full w-full flex-col bg-white shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
               <div>
                 <p className="text-sm font-extrabold text-slate-900 sm:text-base">{label}</p>
-                <p className="text-xs text-slate-500">A assinatura fica em modo horizontal e ocupa praticamente a tela toda ate voce tocar em Salvar.</p>
+                <p className="text-xs text-slate-500">A area de assinatura ocupa toda a largura disponivel ate voce tocar em Salvar.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -612,7 +592,7 @@ function SignaturePad({
             </div>
 
             <div className="flex-1 p-2 sm:p-3">
-              <div className="h-full rounded-2xl border border-slate-300 bg-white p-0.5 touch-none">
+              <div className="h-full min-h-[calc(100dvh-96px)] rounded-2xl border border-slate-300 bg-white p-0.5 touch-none">
                 <canvas
                   ref={canvasRef}
                   onPointerDown={startDrawing}
@@ -623,7 +603,7 @@ function SignaturePad({
                   className="h-full w-full touch-none rounded-xl bg-white"
                 />
               </div>
-              <p className="mt-2 text-center text-xs text-slate-500">Use toda a area acima para assinar. Pode fazer varios traços e a tela so volta ao normal quando salvar.</p>
+              <p className="mt-2 text-center text-xs text-slate-500">Use toda a largura da area acima para assinar, de uma ponta a outra. A tela so volta ao normal quando salvar.</p>
             </div>
           </div>
         </div>
