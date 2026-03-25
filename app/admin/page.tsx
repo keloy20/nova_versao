@@ -3,7 +3,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, Printer, X } from "lucide-react";
-import { API_URL, apiFetch, projectOsPath } from "@/app/lib/api";
+import { API_URL, apiFetch, downloadJsonFile, projectOsPath } from "@/app/lib/api";
 import { formatDate, isOpenStatus, normalizeStatus, statusBadgeClass, statusLabel, STATUS, STATUS_OPTIONS } from "@/app/lib/os";
 
 type OSItem = {
@@ -59,6 +59,7 @@ export default function AdminDashboard() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewLabel, setPreviewLabel] = useState("");
+  const [backupLoading, setBackupLoading] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -156,6 +157,37 @@ export default function AdminDashboard() {
       alert(err instanceof Error ? err.message : "Erro ao carregar preview");
     } finally {
       setPreviewLoading(false);
+    }
+  }
+
+  async function baixarBackupCompleto() {
+    try {
+      setBackupLoading(true);
+      const [osData, clientesData, tecnicosData, terceirosData] = await Promise.all([
+        apiFetch("/projects/admin/export/all"),
+        apiFetch("/clientes/export/all"),
+        apiFetch("/auth/tecnicos/export/all"),
+        apiFetch("/auth/terceiros/export/all"),
+      ]);
+
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        source: "sertech-admin-dashboard",
+        includesPhotos: true,
+        data: {
+          os: osData,
+          clientes: clientesData,
+          tecnicos: tecnicosData,
+          terceiros: terceirosData,
+        },
+      };
+
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      downloadJsonFile(backup, `backup-completo-${stamp}.json`);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao baixar backup completo");
+    } finally {
+      setBackupLoading(false);
     }
   }
 
@@ -290,6 +322,15 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-3 rounded-2xl border border-slate-200/70 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <button
+          type="button"
+          onClick={baixarBackupCompleto}
+          disabled={backupLoading}
+          className="rounded-xl bg-blue-700 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {backupLoading ? "Gerando backup..." : "Baixar backup completo"}
+        </button>
+
         <select
           className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
           value={statusFiltro}
