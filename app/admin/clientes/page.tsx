@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Plus, Search, Trash2, UserRoundPen } from "lucide-react";
-import { apiFetch } from "@/app/lib/api";
+import { apiFetch, downloadJsonFile } from "@/app/lib/api";
 
 type Cliente = {
   _id: string;
@@ -48,6 +48,16 @@ export default function ClientesPage() {
     }
   }
 
+  async function baixarClientes() {
+    try {
+      const data = await apiFetch("/clientes/export/all");
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      downloadJsonFile(data, `clientes-completo-${stamp}.json`);
+    } catch (err: unknown) {
+      alert("Erro ao baixar clientes: " + (err instanceof Error ? err.message : "erro desconhecido"));
+    }
+  }
+
   const lista = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return clientes;
@@ -76,13 +86,21 @@ export default function ClientesPage() {
             <h2 className="text-xl font-extrabold text-slate-900">Clientes</h2>
             <p className="text-sm text-slate-500">Gerencie clientes, subclientes e unidades vinculadas.</p>
           </div>
-          <button
-            onClick={() => router.push("/admin/clientes/novo")}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800"
-          >
-            <Plus size={16} />
-            Novo cliente
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={baixarClientes}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-100"
+            >
+              Baixar clientes
+            </button>
+            <button
+              onClick={() => router.push("/admin/clientes/novo")}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800"
+            >
+              <Plus size={16} />
+              Novo cliente
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-2.5">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/app/lib/api";
+import { apiFetch, downloadJsonFile } from "@/app/lib/api";
 import { formatDate, statusBadgeClass, statusLabel } from "@/app/lib/os";
 
 type Servico = {
@@ -54,10 +54,29 @@ export default function AdminServicosPage() {
     }
   }
 
+  async function baixarTodasOs() {
+    try {
+      const data = await apiFetch("/projects/admin/export/all");
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      downloadJsonFile(data, `os-completo-${stamp}.json`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao baixar OS";
+      alert(message);
+    }
+  }
+
   if (loading) return <p className="rounded-2xl border border-slate-200 bg-white p-4">Carregando...</p>;
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={baixarTodasOs}
+          className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white"
+        >
+          Baixar todas as OS
+        </button>
+      </div>
       {servicos.map((s) => (
         <div key={s._id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">

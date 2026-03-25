@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Phone, Plus, Search, Trash2, UserRoundPen, Wrench } from "lucide-react";
-import { apiFetch } from "@/app/lib/api";
+import { apiFetch, downloadJsonFile } from "@/app/lib/api";
 
 type Tecnico = {
   _id: string;
@@ -45,6 +45,16 @@ export default function TecnicosPage() {
     }
   }
 
+  async function baixarTecnicos() {
+    try {
+      const data = await apiFetch("/auth/tecnicos/export/all");
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      downloadJsonFile(data, `tecnicos-completo-${stamp}.json`);
+    } catch (err: unknown) {
+      alert("Erro ao baixar tecnicos: " + (err instanceof Error ? err.message : "erro desconhecido"));
+    }
+  }
+
   const lista = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return tecnicos;
@@ -69,6 +79,12 @@ export default function TecnicosPage() {
             <p className="text-sm text-slate-500">Cadastre e gerencie a equipe responsavel pelos atendimentos.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={baixarTecnicos}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-100"
+            >
+              Baixar tecnicos
+            </button>
             <button
               onClick={() => router.push("/admin")}
               className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-100"

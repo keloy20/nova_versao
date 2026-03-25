@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/app/lib/api";
+import { apiFetch, downloadJsonFile } from "@/app/lib/api";
 
 type Terceiro = {
   _id: string;
@@ -287,6 +287,16 @@ export default function AdminTerceirosPage() {
     );
   }
 
+  async function baixarTerceiros() {
+    try {
+      const data = await apiFetch("/auth/terceiros/export/all");
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      downloadJsonFile(data, `terceiros-completo-${stamp}.json`);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao baixar terceiros");
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -440,6 +450,12 @@ export default function AdminTerceirosPage() {
             className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
           >
             Copiar Link de Acesso
+          </button>
+          <button
+            onClick={baixarTerceiros}
+            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
+          >
+            Baixar terceiros
           </button>
         </div>
       </div>
