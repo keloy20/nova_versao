@@ -22,6 +22,7 @@ type OSItem = {
   status?: string;
   createdAt?: string;
   data_abertura?: string;
+  data_validacao_admin?: string | null;
   data_inicio_deslocamento?: string | null;
   data_fim_deslocamento?: string | null;
   deslocamento_segundos?: number | null;
