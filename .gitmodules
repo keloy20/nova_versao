@@ -1,0 +1,3 @@
+[submodule "gerenciador-de-os"]
+	path = gerenciador-de-os
+	url = https://github.com/guilhermemorais23/Backend-GerenciadorOS.git
