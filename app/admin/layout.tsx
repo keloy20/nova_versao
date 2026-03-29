@@ -41,6 +41,48 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function carregarNotificacoes() {
+      try {
+        const data = await apiFetch("/admin/notifications?unread=true");
+        if (!cancelled) {
+          setNotifs(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setNotifs([]);
+        }
+      }
+    }
+
+    carregarNotificacoes();
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        carregarNotificacoes();
+      }
+    }, 15000);
+
+    const onFocus = () => carregarNotificacoes();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        carregarNotificacoes();
+      }
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
     apiFetch("/admin/notifications?unread=true")
       .then((data) => setNotifs(Array.isArray(data) ? data : []))
       .catch(() => setNotifs([]));

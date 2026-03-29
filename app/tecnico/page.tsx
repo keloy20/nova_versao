@@ -73,6 +73,23 @@ export default function TecnicoPage() {
     }
 
     carregarServicos();
+
+    const onFocus = () => carregarServicos();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") carregarServicos();
+    };
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") carregarServicos();
+    }, 15000);
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearInterval(intervalId);
+    };
   }, [router]);
 
   useEffect(() => {
