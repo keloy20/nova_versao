@@ -63,8 +63,11 @@ type MetricsResponse = {
   total_pendentes?: number;
 };
 
-const STATUS_FINALIZADAS = "FINALIZADAS";
-const STATUS_ESPERANDO_VALIDACAO = "ESPERANDO_VALIDACAO";
+const STATUS_AGUARDANDO_TECNICO = "aguardando_tecnico";
+const STATUS_EM_DESLOCAMENTO = "em_deslocamento";
+const STATUS_EM_ANDAMENTO = "em_andamento";
+const STATUS_PAUSADA = "pausada";
+const STATUS_FINALIZADAS = "finalizadas";
 
 function getOsSequence(osNumero?: string) {
   const match = String(osNumero || "").match(/^(\d+)/);
@@ -337,57 +340,36 @@ export default function AdminDashboard() {
   }
 
   const contadores = useMemo(() => {
-    if (isProductionDeploy) {
-      return {
-        aguardando: osList.filter((o) => legacyStatusBucket(o.status) === "aguardando_tecnico").length,
-        andamento: osList.filter((o) => legacyStatusBucket(o.status) === "em_andamento").length,
-        concluido: osList.filter((o) => legacyStatusBucket(o.status) === "concluido").length,
-      };
-    }
+    const byBucket = osList.reduce(
+      (acc, os) => {
+        const bucket = dashboardStatusBucket(os);
+        acc[bucket] = (acc[bucket] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     return {
-      abertas: metrics?.total_abertas ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.ABERTA).length,
-      atendimento: metrics?.total_em_atendimento ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.EM_ATENDIMENTO).length,
-      pausadas: metrics?.total_pausadas ?? osList.filter((o) => normalizeStatus(o.status) === STATUS.PAUSADA).length,
-      esperandoValidacao:
-        metrics
-          ? (metrics.total_finalizadas_tecnico ?? 0)
-          : osList.filter((o) => {
-              const s = normalizeStatus(o.status);
-              return s === STATUS.FINALIZADA_PELO_TECNICO;
-            }).length,
-      finalizadas:
-        metrics
-          ? (metrics.total_validadas_admin ?? metrics.total_fechadas ?? 0)
-          : osList.filter((o) => {
-              const s = normalizeStatus(o.status);
-              return s === STATUS.VALIDADA_PELO_ADMIN;
-            }).length,
+      aguardando: byBucket[STATUS_AGUARDANDO_TECNICO] || 0,
+      deslocamento: byBucket[STATUS_EM_DESLOCAMENTO] || 0,
+      andamento: byBucket[STATUS_EM_ANDAMENTO] || 0,
+      pausadas: byBucket[STATUS_PAUSADA] || 0,
+      finalizadas: byBucket[STATUS_FINALIZADAS] || 0,
     };
-  }, [isProductionDeploy, metrics, osList]);
+  }, [osList]);
 
   const listaFiltrada = useMemo(() => {
     return osList.filter((os) => {
-      const statusAtual = isProductionDeploy ? legacyStatusBucket(os.status) : normalizeStatus(os.status);
-      const esperandoValidacao = statusAtual === STATUS.FINALIZADA_PELO_TECNICO;
-      const finalizada = statusAtual === STATUS.VALIDADA_PELO_ADMIN || statusAtual === "concluido";
+      const statusAtual = dashboardStatusBucket(os);
+      const finalizada = statusAtual === STATUS_FINALIZADAS;
 
       if (statusFiltro) {
-        if (statusFiltro === STATUS_FINALIZADAS) {
-          if (!finalizada) return false;
-        } else if (statusFiltro === STATUS_ESPERANDO_VALIDACAO) {
-          if (!esperandoValidacao) return false;
-        } else if (statusAtual !== statusFiltro) {
+        if (statusAtual !== statusFiltro) {
           return false;
         }
       }
 
-      const filtroEhConcluida =
-        statusFiltro === STATUS_FINALIZADAS ||
-        statusFiltro === STATUS.VALIDADA_PELO_ADMIN ||
-        statusFiltro === "concluido";
-      const filtroEhEsperando = statusFiltro === STATUS_ESPERANDO_VALIDACAO || statusFiltro === STATUS.FINALIZADA_PELO_TECNICO;
-      if (!busca.trim() && !filtroEhConcluida && !filtroEhEsperando && (finalizada || esperandoValidacao)) return false;
+      if (!busca.trim() && !statusFiltro && finalizada) return false;
 
       const texto = `
         ${os.cliente || ""}
@@ -420,32 +402,20 @@ export default function AdminDashboard() {
     const finalizadas: OSItem[] = [];
 
     for (const os of listaFiltrada) {
-      const statusAtual = isProductionDeploy ? legacyStatusBucket(os.status) : normalizeStatus(os.status);
-      const isEsperandoValidacao = statusAtual === STATUS.FINALIZADA_PELO_TECNICO;
-      const isFinalizada = statusAtual === STATUS.VALIDADA_PELO_ADMIN || statusAtual === "concluido";
-
-      if (isEsperandoValidacao) esperandoValidacao.push(os);
-      else if (isFinalizada) finalizadas.push(os);
+      const statusAtual = dashboardStatusBucket(os);
+      if (statusAtual === STATUS_FINALIZADAS) finalizadas.push(os);
       else ativas.push(os);
     }
 
     return {
       ativas: sortByOsAscending(ativas),
-      esperandoValidacao: sortByOsAscending(esperandoValidacao),
       finalizadas: sortByOsDescending(finalizadas),
     };
-  }, [isProductionDeploy, listaFiltrada]);
-
-  const mostrarEsperandoValidacao =
-    Boolean(busca.trim()) ||
-    statusFiltro === STATUS_ESPERANDO_VALIDACAO ||
-    statusFiltro === STATUS.FINALIZADA_PELO_TECNICO;
+  }, [listaFiltrada]);
 
   const mostrarFinalizadas =
     Boolean(busca.trim()) ||
-    statusFiltro === STATUS_FINALIZADAS ||
-    statusFiltro === STATUS.VALIDADA_PELO_ADMIN ||
-    statusFiltro === "concluido";
+    statusFiltro === STATUS_FINALIZADAS;
 
   if (loading) {
     return <div className="rounded-2xl border border-slate-200 bg-white p-6">Carregando...</div>;
@@ -454,21 +424,11 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {isProductionDeploy ? (
-          <>
-            <Card titulo="Aguardando Técnico" valor={contadores.aguardando ?? 0} cor="bg-yellow-500" onClick={() => setStatusFiltro("aguardando_tecnico")} active={statusFiltro === "aguardando_tecnico"} />
-            <Card titulo="Em Andamento" valor={contadores.andamento ?? 0} cor="bg-blue-600" onClick={() => setStatusFiltro("em_andamento")} active={statusFiltro === "em_andamento"} />
-            <Card titulo="Finalizadas" valor={contadores.concluido ?? 0} cor="bg-green-600" onClick={() => setStatusFiltro("concluido")} active={statusFiltro === "concluido"} />
-          </>
-        ) : (
-          <>
-            <Card titulo="Abertas" valor={contadores.abertas ?? 0} cor="bg-amber-500" onClick={() => setStatusFiltro(STATUS.ABERTA)} active={statusFiltro === STATUS.ABERTA} />
-            <Card titulo="Em andamento" valor={contadores.atendimento ?? 0} cor="bg-sky-600" onClick={() => setStatusFiltro(STATUS.EM_ATENDIMENTO)} active={statusFiltro === STATUS.EM_ATENDIMENTO} />
-            <Card titulo="Pausadas" valor={contadores.pausadas ?? 0} cor="bg-purple-600" onClick={() => setStatusFiltro(STATUS.PAUSADA)} active={statusFiltro === STATUS.PAUSADA} />
-            <Card titulo="Esperando validacao" valor={contadores.esperandoValidacao ?? 0} cor="bg-amber-700" onClick={() => setStatusFiltro(STATUS_ESPERANDO_VALIDACAO)} active={statusFiltro === STATUS_ESPERANDO_VALIDACAO} />
-            <Card titulo="Finalizadas" valor={contadores.finalizadas ?? 0} cor="bg-teal-700" onClick={() => setStatusFiltro(STATUS_FINALIZADAS)} active={statusFiltro === STATUS_FINALIZADAS} />
-          </>
-        )}
+        <Card titulo="Aguardando técnico" valor={contadores.aguardando ?? 0} cor="bg-amber-500" onClick={() => setStatusFiltro(STATUS_AGUARDANDO_TECNICO)} active={statusFiltro === STATUS_AGUARDANDO_TECNICO} />
+        <Card titulo="Em deslocamento" valor={contadores.deslocamento ?? 0} cor="bg-cyan-600" onClick={() => setStatusFiltro(STATUS_EM_DESLOCAMENTO)} active={statusFiltro === STATUS_EM_DESLOCAMENTO} />
+        <Card titulo="Em andamento" valor={contadores.andamento ?? 0} cor="bg-sky-600" onClick={() => setStatusFiltro(STATUS_EM_ANDAMENTO)} active={statusFiltro === STATUS_EM_ANDAMENTO} />
+        <Card titulo="Pausada" valor={contadores.pausadas ?? 0} cor="bg-purple-600" onClick={() => setStatusFiltro(STATUS_PAUSADA)} active={statusFiltro === STATUS_PAUSADA} />
+        <Card titulo="Finalizada" valor={contadores.finalizadas ?? 0} cor="bg-green-700" onClick={() => setStatusFiltro(STATUS_FINALIZADAS)} active={statusFiltro === STATUS_FINALIZADAS} />
       </div>
 
       <div className="grid gap-3 rounded-2xl border border-slate-200/70 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -478,22 +438,11 @@ export default function AdminDashboard() {
           onChange={(e) => setStatusFiltro(e.target.value)}
         >
           <option value="">Todos os status</option>
-          {isProductionDeploy ? (
-            <>
-              <option value="aguardando_tecnico">Aguardando Técnico</option>
-              <option value="em_andamento">Em Andamento</option>
-              <option value="concluido">Concluído</option>
-            </>
-          ) : (
-            <>
-              <option value={STATUS.ABERTA}>Aberta</option>
-              <option value={STATUS.EM_ATENDIMENTO}>Em andamento</option>
-              <option value={STATUS.PAUSADA}>Pausada</option>
-              <option value={STATUS_ESPERANDO_VALIDACAO}>Esperando validação</option>
-              <option value={STATUS_FINALIZADAS}>Finalizadas</option>
-              <option value={STATUS.CANCELADA}>Cancelada</option>
-            </>
-          )}
+          <option value={STATUS_AGUARDANDO_TECNICO}>Aguardando técnico</option>
+          <option value={STATUS_EM_DESLOCAMENTO}>Em deslocamento</option>
+          <option value={STATUS_EM_ANDAMENTO}>Em andamento</option>
+          <option value={STATUS_PAUSADA}>Pausada</option>
+          <option value={STATUS_FINALIZADAS}>Finalizada</option>
         </select>
 
         <input
@@ -521,15 +470,6 @@ export default function AdminDashboard() {
       <div className="space-y-3">
         {grupos.ativas.map((os) => renderOsCard(os, isProductionDeploy, router, baixarOSRapido))}
 
-        {mostrarEsperandoValidacao && grupos.esperandoValidacao.length > 0 && (
-          <>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
-              Esperando validação
-            </div>
-            {grupos.esperandoValidacao.map((os) => renderOsCard(os, isProductionDeploy, router, baixarOSRapido))}
-          </>
-        )}
-
         {mostrarFinalizadas && grupos.finalizadas.length > 0 && (
           <>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
@@ -540,7 +480,6 @@ export default function AdminDashboard() {
         )}
 
         {grupos.ativas.length === 0 &&
-          (!mostrarEsperandoValidacao || grupos.esperandoValidacao.length === 0) &&
           (!mostrarFinalizadas || grupos.finalizadas.length === 0) && (
           <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600">
             Nenhuma OS encontrada para os filtros aplicados.
@@ -611,10 +550,10 @@ function renderOsCard(
         </div>
         <span
           className={`rounded-full px-3 py-1 text-xs font-bold ${
-            isProductionDeploy ? legacyStatusColor(os.status) : statusBadgeClass(os.status)
+            isProductionDeploy ? legacyStatusColor(os.status, os) : legacyStatusColor(os.status, os)
           }`}
         >
-          {isProductionDeploy ? legacyStatusLabel(os.status) : statusLabel(os.status)}
+          {isProductionDeploy ? legacyStatusLabel(os.status, os) : legacyStatusLabel(os.status, os)}
         </span>
       </div>
 
@@ -679,26 +618,33 @@ function renderOsCard(
   );
 }
 
-function legacyStatusBucket(rawStatus?: string) {
-  const status = normalizeStatus(rawStatus);
-  if (status === STATUS.ABERTA) return "aguardando_tecnico";
-  if (status === STATUS.EM_ATENDIMENTO || status === STATUS.PAUSADA) return "em_andamento";
-  if (status === STATUS.FINALIZADA_PELO_TECNICO || status === STATUS.VALIDADA_PELO_ADMIN) return "concluido";
-  return rawStatus || "";
+function dashboardStatusBucket(os: OSItem) {
+  const status = normalizeStatus(os.status);
+  const emDeslocamento = Boolean(os.data_inicio_deslocamento) && !os.data_fim_deslocamento;
+
+  if (status === STATUS.PAUSADA) return STATUS_PAUSADA;
+  if (emDeslocamento) return STATUS_EM_DESLOCAMENTO;
+  if (status === STATUS.EM_ATENDIMENTO) return STATUS_EM_ANDAMENTO;
+  if (status === STATUS.FINALIZADA_PELO_TECNICO || status === STATUS.VALIDADA_PELO_ADMIN) return STATUS_FINALIZADAS;
+  return STATUS_AGUARDANDO_TECNICO;
 }
 
-function legacyStatusLabel(rawStatus?: string) {
-  const bucket = legacyStatusBucket(rawStatus);
-  if (bucket === "aguardando_tecnico") return "aguardando_tecnico";
-  if (bucket === "em_andamento") return "em_andamento";
-  if (bucket === "concluido") return "concluido";
-  return bucket || "status";
+function legacyStatusLabel(rawStatus?: string, os?: OSItem) {
+  const bucket = os ? dashboardStatusBucket(os) : STATUS_AGUARDANDO_TECNICO;
+  if (bucket === STATUS_AGUARDANDO_TECNICO) return "Aguardando técnico";
+  if (bucket === STATUS_EM_DESLOCAMENTO) return "Em deslocamento";
+  if (bucket === STATUS_EM_ANDAMENTO) return "Em andamento";
+  if (bucket === STATUS_PAUSADA) return "Pausada";
+  if (bucket === STATUS_FINALIZADAS) return "Finalizada";
+  return rawStatus || "status";
 }
 
-function legacyStatusColor(rawStatus?: string) {
-  const bucket = legacyStatusBucket(rawStatus);
-  if (bucket === "aguardando_tecnico") return "bg-yellow-100 text-yellow-800";
-  if (bucket === "em_andamento") return "bg-blue-100 text-blue-800";
-  if (bucket === "concluido") return "bg-green-100 text-green-800";
+function legacyStatusColor(rawStatus?: string, os?: OSItem) {
+  const bucket = os ? dashboardStatusBucket(os) : STATUS_AGUARDANDO_TECNICO;
+  if (bucket === STATUS_AGUARDANDO_TECNICO) return "bg-amber-100 text-amber-800";
+  if (bucket === STATUS_EM_DESLOCAMENTO) return "bg-cyan-100 text-cyan-800";
+  if (bucket === STATUS_EM_ANDAMENTO) return "bg-sky-100 text-sky-800";
+  if (bucket === STATUS_PAUSADA) return "bg-purple-100 text-purple-800";
+  if (bucket === STATUS_FINALIZADAS) return "bg-green-100 text-green-800";
   return "bg-gray-200 text-gray-800";
 }
