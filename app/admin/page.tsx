@@ -190,6 +190,17 @@ export default function AdminDashboard() {
         (typeof detalhe.tecnico === "object" ? detalhe.tecnico?.nome : detalhe.tecnico) ||
         detalhe.tecnicoNome ||
         "-";
+      const loadImageAsDataUrl = async (src: string) => {
+        const response = await fetch(src);
+        const blob = await response.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Nao foi possivel carregar a logo"));
+          reader.readAsDataURL(blob);
+        });
+      };
+      const logoDataUrl = await loadImageAsDataUrl("/sertech-logo.jpeg").catch(() => "");
 
       const statusTexto = legacyStatusLabel(detalhe.status, detalhe);
       const statusCor = dashboardStatusBucket(detalhe) === STATUS_FINALIZADAS ? [34, 197, 94] : [245, 158, 11];
@@ -220,17 +231,18 @@ export default function AdminDashboard() {
         const headerHeight = compact ? 22 : 30;
         pdf.setFillColor(15, 23, 42);
         pdf.rect(0, y, pageWidth, headerHeight, "F");
-        pdf.setFillColor(21, 101, 192);
-        pdf.roundedRect(marginX + 2, y + 7, 20, 14, 1.5, 1.5, "F");
-        pdf.setFillColor(245, 158, 11);
-        pdf.roundedRect(marginX + 2, y + 20, 10, 4, 1, 1, "F");
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(marginX + 2, y + 6, 24, compact ? 12 : 18, 1.5, 1.5, "F");
+        if (logoDataUrl) {
+          pdf.addImage(logoDataUrl, "JPEG", marginX + 3, y + 7, 22, compact ? 10 : 16);
+        }
         pdf.setTextColor(255, 255, 255);
         pdf.setFont("helvetica", "bold");
         pdf.setFontSize(compact ? 13 : 15);
-        pdf.text(`RELATORIO OS ${detalhe.osNumero || ""}`.trim(), marginX + 28, y + 13);
+        pdf.text(`RELATORIO OS ${detalhe.osNumero || ""}`.trim(), marginX + 31, y + 13);
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(7.5);
-        pdf.text("Ordem de Servico  -  Gerenciador", marginX + 28, y + 20);
+        pdf.text("Ordem de Servico  -  Gerenciador", marginX + 31, y + 20);
         pdf.text(formatDate(detalhe.data_validacao_admin || detalhe.data_abertura || detalhe.createdAt), pageWidth - marginX, y + 8, {
           align: "right",
         });
