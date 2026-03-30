@@ -46,7 +46,12 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
         const data = JSON.parse(raw) as { error?: string; message?: string };
         message = data.error || data.message || message;
       } catch {
-        message = raw;
+        const trimmed = raw.trim();
+        if (trimmed.startsWith("<!DOCTYPE html") || trimmed.startsWith("<html")) {
+          message = `Erro ${res.status}: servico indisponivel ou falha no backend`;
+        } else {
+          message = raw;
+        }
       }
     }
     throw new Error(message);
