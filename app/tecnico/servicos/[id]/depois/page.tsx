@@ -26,6 +26,15 @@ type OSTecnico = {
   }>;
 };
 
+function normalizePreviewImageSrc(value?: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("data:image")) return raw;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^file:\/\//i.test(raw)) return raw;
+  return `data:image/jpeg;base64,${raw.replace(/\s+/g, "")}`;
+}
+
 export default function DepoisPage() {
   const params = useParams();
   const router = useRouter();
@@ -55,7 +64,7 @@ export default function DepoisPage() {
 
   async function carregarOS() {
     try {
-      const data = (await apiFetch(`/projects/tecnico/view-lite/${id}`)) as OSTecnico;
+      const data = (await apiFetch(`/projects/tecnico/view/${id}`)) as OSTecnico;
       const status = normalizeStatus(data.status);
 
       if (status !== STATUS.EM_ATENDIMENTO && status !== STATUS.PAUSADA) {
@@ -348,7 +357,7 @@ export default function DepoisPage() {
                         {os.antes.fotos.map((foto, index) => (
                           <div key={`antes-${index}`} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                             <img
-                              src={`data:image/jpeg;base64,${foto}`}
+                              src={normalizePreviewImageSrc(foto)}
                               alt={`Foto inicial ${index + 1}`}
                               className="h-28 w-full object-cover"
                             />

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPinned, Phone } from "lucide-react";
+import { CarFront, Eye, MapPinned, Phone } from "lucide-react";
 import { apiFetch } from "@/app/lib/api";
 import { formatDate, normalizeStatus, priorityBadgeClass, priorityLabel, statusBadgeClass, statusLabel, STATUS } from "@/app/lib/os";
 
@@ -21,6 +21,9 @@ type Servico = {
   data_abertura?: string;
   data_inicio_atendimento?: string;
   data_pausa_atendimento?: string;
+  data_inicio_deslocamento?: string;
+  data_fim_deslocamento?: string;
+  deslocamento_segundos?: number;
   tipo_manutencao?: string;
   solicitante_nome?: string;
   prioridade?: string;
@@ -128,6 +131,19 @@ export default function TecnicoPage() {
       await carregarServicos();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Erro ao atualizar status");
+    }
+  }
+
+  async function mudarDeslocamento(id: string, acao: "iniciar" | "finalizar") {
+    try {
+      const endpoint =
+        acao === "iniciar"
+          ? `/projects/tecnico/deslocamento/iniciar/${id}`
+          : `/projects/tecnico/deslocamento/finalizar/${id}`;
+      await apiFetch(endpoint, { method: "PUT" });
+      await carregarServicos();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao atualizar deslocamento");
     }
   }
 
@@ -273,6 +289,8 @@ export default function TecnicoPage() {
             const gpsHref = s.endereco
               ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.endereco)}`
               : "";
+            const descricaoInicial = String(s.detalhamento || "").trim();
+            const deslocamentoIniciado = Boolean(s.data_inicio_deslocamento && !s.data_fim_deslocamento);
             return (
               <div
                 key={s._id}
@@ -319,7 +337,7 @@ export default function TecnicoPage() {
                 </div>
 
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                  <b>Descrição inicial:</b> {(s as Servico & { detalhamento?: string }).detalhamento || "-"}
+                  <b>Descrição inicial:</b> {descricaoInicial || "Sem descrição informada"}
                 </div>
 
                 {(gpsHref || telefoneHref) && (
@@ -350,6 +368,30 @@ export default function TecnicoPage() {
                 )}
 
                 <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/tecnico/servicos/${s._id}?returnTo=/tecnico`);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    <Eye size={15} />
+                    Preview
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      mudarDeslocamento(s._id, deslocamentoIniciado ? "finalizar" : "iniciar");
+                    }}
+                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white ${
+                      deslocamentoIniciado ? "bg-amber-600 hover:bg-amber-700" : "bg-amber-500 hover:bg-amber-600"
+                    }`}
+                  >
+                    <CarFront size={15} />
+                    {deslocamentoIniciado ? "Finalizar deslocamento" : "Iniciar deslocamento"}
+                  </button>
+
                   {status === STATUS.ABERTA && (
                     <button
                       onClick={(e) => {
