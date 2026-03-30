@@ -18,6 +18,9 @@ Se nao usa Docker, instale MongoDB local e garanta a URL do `.env`:
 
 ```bash
 MONGO_URI=mongodb://127.0.0.1:27017/gerenciador_os_local
+WASENDER_BASE_URL=https://www.wasenderapi.com
+WASENDER_API_KEY=sua-chave-de-teste
+WASENDER_SESSION=Nome-da-sessao-opcional
 ```
 
 ## Rodar frontend local
@@ -31,3 +34,4 @@ npm run dev
 - Nao fazer deploy agora.
 - Nao apontar `NEXT_PUBLIC_API_URL` para Render durante testes.
 - O codigo novo de terceiros/dashboard/notificacoes foi adicionado para ambiente local de desenvolvimento.
+- O envio de WhatsApp local tambem depende de `WASENDER_API_KEY` configurada no backend.
