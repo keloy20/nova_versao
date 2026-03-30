@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, Printer } from "lucide-react";
-import { apiFetch } from "@/app/lib/api";
+import { API_URL, apiFetch } from "@/app/lib/api";
 import { formatDate, isOpenStatus, normalizeStatus, STATUS } from "@/app/lib/os";
 
 type OSItem = {
@@ -79,6 +79,7 @@ const STATUS_AGUARDANDO_TECNICO = "aguardando_tecnico";
 const STATUS_EM_DESLOCAMENTO = "em_deslocamento";
 const STATUS_EM_ANDAMENTO = "em_andamento";
 const STATUS_PAUSADA = "pausada";
+const STATUS_AGUARDANDO_VALIDACAO = "aguardando_validacao";
 const STATUS_FINALIZADAS = "finalizadas";
 const ADMIN_FILTER_STORAGE_KEY = "admin-dashboard-filters";
 
@@ -194,263 +195,36 @@ export default function AdminDashboard() {
     try {
       const osId = os._id || os.id;
       if (!osId) throw new Error("OS sem identificador");
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/os/${osId}/report?variant=client&force=true`, {
+        method: "GET",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        cache: "no-store",
+      });
 
-      const detalhe = (await apiFetch(`/projects/admin/view/${osId}`)) as OSItem;
-
-      const { jsPDF } = await import("jspdf");
-      const pdf = new jsPDF({ unit: "mm", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const marginX = 10;
-      const contentWidth = pageWidth - marginX * 2;
-      const footerHeight = 10;
-      let y = 8;
-
-      const tecnicoNome =
-        (typeof detalhe.tecnico === "object" ? detalhe.tecnico?.nome : detalhe.tecnico) ||
-        detalhe.tecnicoNome ||
-        "-";
-      const loadImageAsDataUrl = async (src: string) => {
-        const response = await fetch(src);
-        const blob = await response.blob();
-        return await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(String(reader.result || ""));
-          reader.onerror = () => reject(new Error("Nao foi possivel carregar a logo"));
-          reader.readAsDataURL(blob);
-        });
-      };
-      const logoDataUrl = await loadImageAsDataUrl("/sertech-logo.jpeg").catch(() => "");
-
-      const statusTexto = legacyStatusLabel(detalhe.status, detalhe);
-      const statusCor = dashboardStatusBucket(detalhe) === STATUS_FINALIZADAS ? [34, 197, 94] : [245, 158, 11];
-      const addFooter = () => {
-        pdf.setDrawColor(245, 158, 11);
-        pdf.setLineWidth(0.6);
-        pdf.line(marginX, pageHeight - footerHeight, pageWidth - marginX, pageHeight - footerHeight);
-        pdf.setTextColor(71, 85, 105);
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(7);
-        pdf.text("SERTECH Solucoes Integradas Ltda", marginX, pageHeight - 4);
-        pdf.text(`OS: ${detalhe.osNumero || "-"}`, pageWidth - marginX, pageHeight - 4, { align: "right" });
-      };
-
-      const addPage = () => {
-        pdf.addPage();
-        y = 8;
-        drawHeader(true);
-        addFooter();
-      };
-
-      const ensureSpace = (heightNeeded: number) => {
-        if (y + heightNeeded <= pageHeight - footerHeight - 8) return;
-        addPage();
-      };
-
-      const drawHeader = (compact = false) => {
-        const headerHeight = compact ? 22 : 30;
-        pdf.setFillColor(15, 23, 42);
-        pdf.rect(0, y, pageWidth, headerHeight, "F");
-        pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(marginX + 2, y + 6, 24, compact ? 12 : 18, 1.5, 1.5, "F");
-        if (logoDataUrl) {
-          pdf.addImage(logoDataUrl, "JPEG", marginX + 3, y + 7, 22, compact ? 10 : 16);
-        }
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(compact ? 15 : 17);
-        pdf.text(`RELATORIO OS ${detalhe.osNumero || ""}`.trim(), marginX + 31, y + 13);
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(6.5);
-        pdf.text("Solucoes integradas", marginX + 31, y + 18);
-        pdf.setFontSize(9);
-        pdf.text("Ordem de Servico - Gerenciador", marginX + 31, y + 23);
-        pdf.text(formatDate(detalhe.data_validacao_admin || detalhe.data_abertura || detalhe.createdAt), pageWidth - marginX, y + 8, {
-          align: "right",
-        });
-        pdf.setFillColor(statusCor[0], statusCor[1], statusCor[2]);
-        pdf.roundedRect(pageWidth - 52, y + 9, 34, 8, 2, 2, "F");
-        pdf.setFontSize(7);
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(statusTexto, pageWidth - 35, y + 14, { align: "center" });
-        pdf.setDrawColor(245, 158, 11);
-        pdf.setLineWidth(1);
-        pdf.line(0, y + headerHeight, pageWidth, y + headerHeight);
-        y += headerHeight + 6;
-      };
-
-      const drawSectionTitle = (title: string) => {
-        ensureSpace(8);
-        pdf.setFillColor(23, 37, 84);
-        pdf.rect(marginX, y, contentWidth, 7, "F");
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(8);
-        pdf.text(title.toUpperCase(), marginX + 3, y + 4.8);
-        y += 9;
-      };
-
-      const drawFieldTable = (rows: Array<[string, string | undefined | null]>) => {
-        const lineHeight = 6;
-        const labelWidth = 28;
-        rows.forEach(([label, value]) => {
-          const text = String(value || "-");
-          const wrapped = pdf.splitTextToSize(text, contentWidth - labelWidth - 6);
-          const rowHeight = Math.max(lineHeight, wrapped.length * 4.5 + 1.5);
-          ensureSpace(rowHeight);
-          pdf.setDrawColor(203, 213, 225);
-          pdf.setFillColor(255, 255, 255);
-          pdf.rect(marginX, y, labelWidth, rowHeight);
-          pdf.rect(marginX + labelWidth, y, contentWidth - labelWidth, rowHeight);
-          pdf.setTextColor(30, 41, 59);
-          pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(7.5);
-          pdf.text(`${label}:`, marginX + 2, y + 4.2);
-          pdf.setFont("helvetica", "normal");
-          pdf.setFontSize(7.5);
-          pdf.text(wrapped, marginX + labelWidth + 2, y + 4.2);
-          y += rowHeight;
-        });
-        y += 3;
-      };
-
-      const drawLongField = (label: string, value?: string | null, color: [number, number, number] = [226, 232, 240]) => {
-        const safeValue = String(value || "-");
-        const wrapped = pdf.splitTextToSize(safeValue, contentWidth - 6);
-        const height = Math.max(9, wrapped.length * 4.5 + 3);
-        ensureSpace(height);
-        pdf.setDrawColor(color[0], color[1], color[2]);
-        pdf.rect(marginX, y, contentWidth, height);
-        pdf.setTextColor(30, 41, 59);
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(7.5);
-        pdf.text(label, marginX + 2, y + 3.8);
-        pdf.setFont("helvetica", "normal");
-        pdf.text(wrapped, marginX + 28, y + 3.8);
-        y += height + 3;
-      };
-
-      const drawImageGrid = async (title: string, fotos?: string[], pageLimit = 4) => {
-        if (!Array.isArray(fotos) || fotos.length === 0) return;
-        drawSectionTitle(title);
-        const imageWidth = (contentWidth - 8) / 2;
-        const imageHeight = 42;
-        const gap = 8;
-        let col = 0;
-        const visibleFotos = fotos.slice(0, pageLimit);
-
-        for (let index = 0; index < visibleFotos.length; index += 1) {
-          if (col === 0) {
-            ensureSpace(imageHeight + 10);
-          }
-
-          const x = marginX + col * (imageWidth + gap);
-          const currentFoto = visibleFotos[index];
-          const imageData = currentFoto?.startsWith("data:image/")
-            ? currentFoto
-            : `data:image/jpeg;base64,${currentFoto}`;
-          const imageFormat = imageData.startsWith("data:image/png") ? "PNG" : "JPEG";
-
-          pdf.setDrawColor(title.includes("ANTES") ? 248 : 134, title.includes("ANTES") ? 113 : 239, title.includes("ANTES") ? 113 : 172);
-          pdf.rect(x, y, imageWidth, imageHeight);
-          pdf.addImage(imageData, imageFormat, x + 1.5, y + 1.5, imageWidth - 3, imageHeight - 3);
-          pdf.setFont("helvetica", "normal");
-          pdf.setFontSize(7);
-          pdf.setTextColor(71, 85, 105);
-          pdf.text(`Foto ${index + 1}`, x, y + imageHeight + 4);
-
-          col += 1;
-          if (col === 2) {
-            col = 0;
-            y += imageHeight + 10;
+      if (!res.ok) {
+        let message = "Erro ao gerar PDF";
+        const raw = await res.text();
+        if (raw) {
+          try {
+            const data = JSON.parse(raw) as { error?: string; message?: string };
+            message = data.error || data.message || message;
+          } catch {
+            message = raw;
           }
         }
-
-        if (col !== 0) {
-          y += imageHeight + 10;
-        }
-      };
-
-      const drawSignatureRow = () => {
-        ensureSpace(44);
-        const boxWidth = (contentWidth - 6) / 2;
-        const titles = [
-          { label: "Assinatura do Técnico", value: detalhe.assinatura_tecnico, fallback: tecnicoNome },
-          { label: "Assinatura do Cliente", value: detalhe.assinatura_cliente, fallback: detalhe.cliente || "-" },
-        ];
-
-        titles.forEach((item, index) => {
-          const x = marginX + index * (boxWidth + 6);
-          pdf.setDrawColor(59, 130, 246);
-          pdf.rect(x, y, boxWidth, 30);
-          pdf.setTextColor(30, 41, 59);
-          pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(7.5);
-          pdf.text(item.label, x + 2, y + 4);
-          if (item.value && String(item.value).startsWith("data:image/")) {
-            pdf.addImage(String(item.value), "PNG", x + 2, y + 6, boxWidth - 4, 18);
-          } else {
-            pdf.setFont("helvetica", "normal");
-            pdf.setFontSize(7);
-            pdf.text(String(item.fallback || "-"), x + boxWidth / 2, y + 22, { align: "center" });
-          }
-        });
-        y += 36;
-      };
-
-      drawHeader();
-      addFooter();
-
-      drawSectionTitle("Dados principais");
-      drawFieldTable([
-        ["OS", detalhe.osNumero || osId],
-        ["Status", statusTexto],
-        ["Cliente", detalhe.cliente],
-        ["Solicitante", detalhe.solicitante_nome],
-        ["Tipo", detalhe.tipo_manutencao],
-        ["Técnico", tecnicoNome],
-        ["Abertura", formatDate(detalhe.data_abertura || detalhe.createdAt)],
-        ["Telefone", detalhe.telefone],
-        ["E-mail", detalhe.email],
-        ["Endereço", detalhe.endereco],
-      ]);
-
-      drawSectionTitle("Descrição do serviço");
-      drawLongField("Detalhamento", detalhe.detalhamento);
-
-      drawSectionTitle("Relatório inicial");
-      drawLongField("Parecer", detalhe.antes?.relatorio, [59, 130, 246]);
-      if (detalhe.antes?.observacao) {
-        drawLongField("Obs", detalhe.antes?.observacao, [59, 130, 246]);
+        throw new Error(message);
       }
 
-      await drawImageGrid("Relatório fotográfico inicial", detalhe.antes?.fotos, 2);
-
-      addPage();
-
-      await drawImageGrid("Relatório fotográfico final", detalhe.depois?.fotos, 2);
-      drawSectionTitle("Relatório final");
-      drawLongField("Parecer", detalhe.depois?.relatorio, [16, 185, 129]);
-      if (detalhe.depois?.observacao) {
-        drawLongField("Obs", detalhe.depois?.observacao, [16, 185, 129]);
-      }
-
-      if (Array.isArray(detalhe.materiais_solicitados) && detalhe.materiais_solicitados.length > 0) {
-        drawSectionTitle("Materiais");
-        detalhe.materiais_solicitados.slice(0, 3).forEach((material, index) => {
-          drawLongField(
-            `Item ${index + 1}`,
-            `${material.nome || "-"} | ${material.quantidade ?? 0} ${material.unidade || "un"}${
-              material.fabricante ? ` | ${material.fabricante}` : ""
-            }${material.modelo ? ` | ${material.modelo}` : ""}${material.observacao ? ` | ${material.observacao}` : ""}`
-          );
-        });
-      }
-
-      drawSectionTitle("Assinaturas");
-      drawSignatureRow();
-
-      pdf.save(`RELATORIO-OS-${detalhe.osNumero || osId}.pdf`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `RELATORIO-OS-${os.osNumero || osId}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Erro ao baixar OS");
     }
@@ -471,6 +245,7 @@ export default function AdminDashboard() {
       deslocamento: byBucket[STATUS_EM_DESLOCAMENTO] || 0,
       andamento: byBucket[STATUS_EM_ANDAMENTO] || 0,
       pausadas: byBucket[STATUS_PAUSADA] || 0,
+      aguardandoValidacao: byBucket[STATUS_AGUARDANDO_VALIDACAO] || 0,
       finalizadas: byBucket[STATUS_FINALIZADAS] || 0,
     };
   }, [osList]);
@@ -548,12 +323,13 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <Card titulo="Aguardando técnico" valor={contadores.aguardando ?? 0} cor="bg-amber-500" onClick={() => setStatusFiltro(STATUS_AGUARDANDO_TECNICO)} active={statusFiltro === STATUS_AGUARDANDO_TECNICO} />
         <Card titulo="Em deslocamento" valor={contadores.deslocamento ?? 0} cor="bg-cyan-600" onClick={() => setStatusFiltro(STATUS_EM_DESLOCAMENTO)} active={statusFiltro === STATUS_EM_DESLOCAMENTO} />
         <Card titulo="Em andamento" valor={contadores.andamento ?? 0} cor="bg-sky-600" onClick={() => setStatusFiltro(STATUS_EM_ANDAMENTO)} active={statusFiltro === STATUS_EM_ANDAMENTO} />
         <Card titulo="Pausada" valor={contadores.pausadas ?? 0} cor="bg-purple-600" onClick={() => setStatusFiltro(STATUS_PAUSADA)} active={statusFiltro === STATUS_PAUSADA} />
-        <Card titulo="Finalizada" valor={contadores.finalizadas ?? 0} cor="bg-green-700" onClick={() => setStatusFiltro(STATUS_FINALIZADAS)} active={statusFiltro === STATUS_FINALIZADAS} />
+        <Card titulo="Esperando validação" valor={contadores.aguardandoValidacao ?? 0} cor="bg-orange-600" onClick={() => setStatusFiltro(STATUS_AGUARDANDO_VALIDACAO)} active={statusFiltro === STATUS_AGUARDANDO_VALIDACAO} />
+        <Card titulo="Concluída" valor={contadores.finalizadas ?? 0} cor="bg-green-700" onClick={() => setStatusFiltro(STATUS_FINALIZADAS)} active={statusFiltro === STATUS_FINALIZADAS} />
       </div>
 
       <div className="grid gap-3 rounded-2xl border border-slate-200/70 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -567,7 +343,8 @@ export default function AdminDashboard() {
           <option value={STATUS_EM_DESLOCAMENTO}>Em deslocamento</option>
           <option value={STATUS_EM_ANDAMENTO}>Em andamento</option>
           <option value={STATUS_PAUSADA}>Pausada</option>
-          <option value={STATUS_FINALIZADAS}>Finalizada</option>
+          <option value={STATUS_AGUARDANDO_VALIDACAO}>Esperando validação</option>
+          <option value={STATUS_FINALIZADAS}>Concluída</option>
         </select>
 
         <input
@@ -812,7 +589,8 @@ function dashboardStatusBucket(os: OSItem) {
   if (status === STATUS.PAUSADA) return STATUS_PAUSADA;
   if (emDeslocamento) return STATUS_EM_DESLOCAMENTO;
   if (status === STATUS.EM_ATENDIMENTO) return STATUS_EM_ANDAMENTO;
-  if (status === STATUS.FINALIZADA_PELO_TECNICO || status === STATUS.VALIDADA_PELO_ADMIN) return STATUS_FINALIZADAS;
+  if (status === STATUS.FINALIZADA_PELO_TECNICO) return STATUS_AGUARDANDO_VALIDACAO;
+  if (status === STATUS.VALIDADA_PELO_ADMIN) return STATUS_FINALIZADAS;
   return STATUS_AGUARDANDO_TECNICO;
 }
 
@@ -822,7 +600,8 @@ function legacyStatusLabel(rawStatus?: string, os?: OSItem) {
   if (bucket === STATUS_EM_DESLOCAMENTO) return "Em deslocamento";
   if (bucket === STATUS_EM_ANDAMENTO) return "Em andamento";
   if (bucket === STATUS_PAUSADA) return "Pausada";
-  if (bucket === STATUS_FINALIZADAS) return "Finalizada";
+  if (bucket === STATUS_AGUARDANDO_VALIDACAO) return "Aguardando validação";
+  if (bucket === STATUS_FINALIZADAS) return "Concluída";
   return rawStatus || "status";
 }
 
@@ -832,6 +611,7 @@ function legacyStatusColor(rawStatus?: string, os?: OSItem) {
   if (bucket === STATUS_EM_DESLOCAMENTO) return "bg-cyan-100 text-cyan-800";
   if (bucket === STATUS_EM_ANDAMENTO) return "bg-sky-100 text-sky-800";
   if (bucket === STATUS_PAUSADA) return "bg-purple-100 text-purple-800";
+  if (bucket === STATUS_AGUARDANDO_VALIDACAO) return "bg-orange-100 text-orange-800";
   if (bucket === STATUS_FINALIZADAS) return "bg-green-100 text-green-800";
   return "bg-gray-200 text-gray-800";
 }
