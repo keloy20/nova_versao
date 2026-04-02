@@ -75,6 +75,7 @@ type NotificationItem = {
   os_id?: string | { _id?: string } | null;
 };
 
+const STATUS_SOLICITACOES_CLIENTE = "solicitacoes_cliente";
 const STATUS_AGUARDANDO_TECNICO = "aguardando_tecnico";
 const STATUS_EM_DESLOCAMENTO = "em_deslocamento";
 const STATUS_EM_ANDAMENTO = "em_andamento";
@@ -241,6 +242,7 @@ export default function AdminDashboard() {
     );
 
     return {
+      solicitacoesCliente: byBucket[STATUS_SOLICITACOES_CLIENTE] || 0,
       aguardando: byBucket[STATUS_AGUARDANDO_TECNICO] || 0,
       deslocamento: byBucket[STATUS_EM_DESLOCAMENTO] || 0,
       andamento: byBucket[STATUS_EM_ANDAMENTO] || 0,
@@ -323,12 +325,13 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
+        <Card titulo="Solicitações do cliente" valor={contadores.solicitacoesCliente ?? 0} cor="bg-indigo-600" onClick={() => setStatusFiltro(STATUS_SOLICITACOES_CLIENTE)} active={statusFiltro === STATUS_SOLICITACOES_CLIENTE} />
         <Card titulo="Aguardando técnico" valor={contadores.aguardando ?? 0} cor="bg-amber-500" onClick={() => setStatusFiltro(STATUS_AGUARDANDO_TECNICO)} active={statusFiltro === STATUS_AGUARDANDO_TECNICO} />
         <Card titulo="Em deslocamento" valor={contadores.deslocamento ?? 0} cor="bg-cyan-600" onClick={() => setStatusFiltro(STATUS_EM_DESLOCAMENTO)} active={statusFiltro === STATUS_EM_DESLOCAMENTO} />
         <Card titulo="Em andamento" valor={contadores.andamento ?? 0} cor="bg-sky-600" onClick={() => setStatusFiltro(STATUS_EM_ANDAMENTO)} active={statusFiltro === STATUS_EM_ANDAMENTO} />
         <Card titulo="Pausada" valor={contadores.pausadas ?? 0} cor="bg-purple-600" onClick={() => setStatusFiltro(STATUS_PAUSADA)} active={statusFiltro === STATUS_PAUSADA} />
-        <Card titulo="Esperando validação" valor={contadores.aguardandoValidacao ?? 0} cor="bg-orange-600" onClick={() => setStatusFiltro(STATUS_AGUARDANDO_VALIDACAO)} active={statusFiltro === STATUS_AGUARDANDO_VALIDACAO} />
+        <Card titulo="Aguardando validação" valor={contadores.aguardandoValidacao ?? 0} cor="bg-orange-600" onClick={() => setStatusFiltro(STATUS_AGUARDANDO_VALIDACAO)} active={statusFiltro === STATUS_AGUARDANDO_VALIDACAO} />
         <Card titulo="Concluída" valor={contadores.finalizadas ?? 0} cor="bg-green-700" onClick={() => setStatusFiltro(STATUS_FINALIZADAS)} active={statusFiltro === STATUS_FINALIZADAS} />
       </div>
 
@@ -339,11 +342,12 @@ export default function AdminDashboard() {
           onChange={(e) => setStatusFiltro(e.target.value)}
         >
           <option value="">Todos os status</option>
+          <option value={STATUS_SOLICITACOES_CLIENTE}>Solicitações do cliente</option>
           <option value={STATUS_AGUARDANDO_TECNICO}>Aguardando técnico</option>
           <option value={STATUS_EM_DESLOCAMENTO}>Em deslocamento</option>
           <option value={STATUS_EM_ANDAMENTO}>Em andamento</option>
           <option value={STATUS_PAUSADA}>Pausada</option>
-          <option value={STATUS_AGUARDANDO_VALIDACAO}>Esperando validação</option>
+          <option value={STATUS_AGUARDANDO_VALIDACAO}>Aguardando validação</option>
           <option value={STATUS_FINALIZADAS}>Concluída</option>
         </select>
 
@@ -575,7 +579,12 @@ function renderOsCard(
 function dashboardStatusBucket(os: OSItem) {
   const status = normalizeStatus(os.status);
   const emDeslocamento = Boolean(os.data_inicio_deslocamento) && !os.data_fim_deslocamento;
+  const tecnicoNome =
+    (typeof os.tecnico === "object" ? os.tecnico?.nome : os.tecnico) ||
+    os.tecnicoNome ||
+    "";
 
+  if (status === STATUS.ABERTA && !String(tecnicoNome).trim()) return STATUS_SOLICITACOES_CLIENTE;
   if (status === STATUS.PAUSADA) return STATUS_PAUSADA;
   if (emDeslocamento) return STATUS_EM_DESLOCAMENTO;
   if (status === STATUS.EM_ATENDIMENTO) return STATUS_EM_ANDAMENTO;
@@ -585,7 +594,8 @@ function dashboardStatusBucket(os: OSItem) {
 }
 
 function legacyStatusLabel(rawStatus?: string, os?: OSItem) {
-  const bucket = os ? dashboardStatusBucket(os) : STATUS_AGUARDANDO_TECNICO;
+  const bucket = os ? dashboardStatusBucket(os) : STATUS_SOLICITACOES_CLIENTE;
+  if (bucket === STATUS_SOLICITACOES_CLIENTE) return "Solicitação do cliente";
   if (bucket === STATUS_AGUARDANDO_TECNICO) return "Aguardando técnico";
   if (bucket === STATUS_EM_DESLOCAMENTO) return "Em deslocamento";
   if (bucket === STATUS_EM_ANDAMENTO) return "Em andamento";
@@ -596,7 +606,8 @@ function legacyStatusLabel(rawStatus?: string, os?: OSItem) {
 }
 
 function legacyStatusColor(rawStatus?: string, os?: OSItem) {
-  const bucket = os ? dashboardStatusBucket(os) : STATUS_AGUARDANDO_TECNICO;
+  const bucket = os ? dashboardStatusBucket(os) : STATUS_SOLICITACOES_CLIENTE;
+  if (bucket === STATUS_SOLICITACOES_CLIENTE) return "bg-indigo-100 text-indigo-800";
   if (bucket === STATUS_AGUARDANDO_TECNICO) return "bg-amber-100 text-amber-800";
   if (bucket === STATUS_EM_DESLOCAMENTO) return "bg-cyan-100 text-cyan-800";
   if (bucket === STATUS_EM_ANDAMENTO) return "bg-sky-100 text-sky-800";

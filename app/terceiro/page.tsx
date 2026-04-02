@@ -50,6 +50,7 @@ export default function TerceiroPage() {
   const [subcliente, setSubcliente] = useState("");
   const [marca, setMarca] = useState("");
   const [unidade, setUnidade] = useState("");
+  const [endereco, setEndereco] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
   const [lista, setLista] = useState<OSItem[]>([]);
@@ -73,6 +74,7 @@ export default function TerceiroPage() {
     setSubcliente(localStorage.getItem("subcliente_vinculado") || "");
     setMarca(localStorage.getItem("marca_vinculada") || "");
     setUnidade(localStorage.getItem("unidade_vinculada") || "");
+    setEndereco(localStorage.getItem("endereco_vinculado") || "");
     setTelefone(localStorage.getItem("telefone") || "");
     setEmail(localStorage.getItem("email") || "");
 
@@ -88,8 +90,59 @@ export default function TerceiroPage() {
     } catch {
       // noop
     }
+    carregarDadosVinculados();
     carregarOS();
   }, [router]);
+
+  async function carregarDadosVinculados() {
+    try {
+      const data = (await apiFetch("/clientes/vinculado/me")) as {
+        solicitante_nome?: string;
+        cliente?: string;
+        subcliente?: string;
+        marca?: string;
+        unidade?: string;
+        endereco?: string;
+        telefone?: string;
+        email?: string;
+      };
+
+      if (data.solicitante_nome) {
+        setSolicitanteNome(data.solicitante_nome);
+        localStorage.setItem("nome", data.solicitante_nome);
+      }
+      if (data.cliente) {
+        setCliente(data.cliente);
+        localStorage.setItem("cliente_vinculado", data.cliente);
+      }
+      if (data.subcliente) {
+        setSubcliente(data.subcliente);
+        localStorage.setItem("subcliente_vinculado", data.subcliente);
+      }
+      if (data.marca) {
+        setMarca(data.marca);
+        localStorage.setItem("marca_vinculada", data.marca);
+      }
+      if (data.unidade) {
+        setUnidade(data.unidade);
+        localStorage.setItem("unidade_vinculada", data.unidade);
+      }
+      if (data.endereco) {
+        setEndereco(data.endereco);
+        localStorage.setItem("endereco_vinculado", data.endereco);
+      }
+      if (data.telefone) {
+        setTelefone(data.telefone);
+        localStorage.setItem("telefone", data.telefone);
+      }
+      if (data.email) {
+        setEmail(data.email);
+        localStorage.setItem("email", data.email);
+      }
+    } catch {
+      // noop
+    }
+  }
 
   async function carregarOS() {
     try {
@@ -119,6 +172,7 @@ export default function TerceiroPage() {
       formData.append("subcliente", subcliente);
       formData.append("marca", marca);
       formData.append("unidade", unidade);
+      formData.append("endereco", endereco);
       formData.append("telefone", telefone);
       formData.append("email", email);
       formData.append("solicitante_nome", solicitanteNome.trim());
@@ -270,6 +324,9 @@ export default function TerceiroPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Empresa" value={cliente || "Cliente avulso"} disabled />
               <Field label="Unidade / Subcliente" value={subcliente || unidade || "-"} disabled />
+              <Field label="Endereço" value={endereco || "-"} disabled />
+              <Field label="Telefone" value={telefone || "-"} disabled />
+              <Field label="Email" value={email || "-"} disabled />
               <Field label="Solicitante" value={solicitanteNome} onChange={setSolicitanteNome} placeholder="Nome do solicitante" />
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-sm font-semibold text-white/80">Descrição</label>

@@ -6,15 +6,6 @@ import { apiFetch } from "@/app/lib/api";
 import { PRIORIDADES, TIPO_MANUTENCAO } from "@/app/lib/os";
 
 type Tecnico = { _id: string; nome: string };
-type EquipamentoCatalogo = {
-  _id: string;
-  nome: string;
-  fabricante?: string;
-  modelo?: string;
-  numero_serie?: string;
-  patrimonio?: string;
-  especificacoes_tecnicas?: string;
-};
 
 type OSDetalhe = {
   cliente?: string;
@@ -25,14 +16,6 @@ type OSDetalhe = {
   email?: string;
   telefone?: string;
   detalhamento?: string;
-  orcamento_previsto?: string;
-  equipamento_catalogo_id?: string;
-  equipamento_nome?: string;
-  equipamento_fabricante?: string;
-  equipamento_modelo?: string;
-  equipamento_numero_serie?: string;
-  equipamento_patrimonio?: string;
-  equipamento_especificacoes?: string;
   solicitante_nome?: string;
   tipo_manutencao?: (typeof TIPO_MANUTENCAO)[number];
   prioridade?: (typeof PRIORIDADES)[number];
@@ -64,15 +47,6 @@ export default function EditarOSPage() {
   const [prioridade, setPrioridade] = useState<(typeof PRIORIDADES)[number]>("MEDIA");
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [tecnicoId, setTecnicoId] = useState("");
-  const [catalogoEquipamentos, setCatalogoEquipamentos] = useState<EquipamentoCatalogo[]>([]);
-  const [equipamentoCatalogoId, setEquipamentoCatalogoId] = useState("");
-  const [equipamentoNome, setEquipamentoNome] = useState("");
-  const [equipamentoFabricante, setEquipamentoFabricante] = useState("");
-  const [equipamentoModelo, setEquipamentoModelo] = useState("");
-  const [equipamentoNumeroSerie, setEquipamentoNumeroSerie] = useState("");
-  const [equipamentoPatrimonio, setEquipamentoPatrimonio] = useState("");
-  const [equipamentoEspecificacoes, setEquipamentoEspecificacoes] = useState("");
-  const [orcamentoPrevisto, setOrcamentoPrevisto] = useState("");
   const [fotoProblema, setFotoProblema] = useState("");
 
   const isDasa = cliente.trim().toLowerCase() === "dasa";
@@ -82,13 +56,6 @@ export default function EditarOSPage() {
     carregarTecnicos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (tipoManutencao !== "PREVENTIVA") return;
-    apiFetch("/catalog/equipamentos")
-      .then((data) => setCatalogoEquipamentos(Array.isArray(data) ? (data as EquipamentoCatalogo[]) : []))
-      .catch(() => setCatalogoEquipamentos([]));
-  }, [tipoManutencao]);
 
   async function carregarOS() {
     try {
@@ -106,14 +73,6 @@ export default function EditarOSPage() {
       setTipoManutencao(data.tipo_manutencao || "CORRETIVA");
       setPrioridade(data.prioridade || "MEDIA");
       setTecnicoId(data.tecnico?._id || "");
-      setEquipamentoCatalogoId(data.equipamento_catalogo_id || "");
-      setEquipamentoNome(data.equipamento_nome || "");
-      setEquipamentoFabricante(data.equipamento_fabricante || "");
-      setEquipamentoModelo(data.equipamento_modelo || "");
-      setEquipamentoNumeroSerie(data.equipamento_numero_serie || "");
-      setEquipamentoPatrimonio(data.equipamento_patrimonio || "");
-      setEquipamentoEspecificacoes(data.equipamento_especificacoes || "");
-      setOrcamentoPrevisto(data.orcamento_previsto || "");
       setFotoProblema(data.problem_photo_url || data.foto_abertura || "");
     } catch (err: unknown) {
       alert("Erro ao carregar OS: " + (err instanceof Error ? err.message : "erro desconhecido"));
@@ -125,18 +84,6 @@ export default function EditarOSPage() {
   async function carregarTecnicos() {
     const data = await apiFetch("/auth/tecnicos");
     setTecnicos(Array.isArray(data) ? (data as Tecnico[]) : []);
-  }
-
-  function selecionarEquipamento(idSelecionado: string) {
-    setEquipamentoCatalogoId(idSelecionado);
-    const eq = catalogoEquipamentos.find((item) => item._id === idSelecionado);
-    if (!eq) return;
-    setEquipamentoNome(eq.nome || "");
-    setEquipamentoFabricante(eq.fabricante || "");
-    setEquipamentoModelo(eq.modelo || "");
-    setEquipamentoNumeroSerie(eq.numero_serie || "");
-    setEquipamentoPatrimonio(eq.patrimonio || "");
-    setEquipamentoEspecificacoes(eq.especificacoes_tecnicas || "");
   }
 
   async function salvarAlteracoes() {
@@ -158,14 +105,6 @@ export default function EditarOSPage() {
           solicitante_nome: solicitanteNome,
           tipo_manutencao: tipoManutencao,
           prioridade,
-          equipamento_catalogo_id: tipoManutencao === "PREVENTIVA" ? equipamentoCatalogoId : "",
-          equipamento_nome: tipoManutencao === "PREVENTIVA" ? equipamentoNome : "",
-          equipamento_fabricante: tipoManutencao === "PREVENTIVA" ? equipamentoFabricante : "",
-          equipamento_modelo: tipoManutencao === "PREVENTIVA" ? equipamentoModelo : "",
-          equipamento_numero_serie: tipoManutencao === "PREVENTIVA" ? equipamentoNumeroSerie : "",
-          equipamento_patrimonio: tipoManutencao === "PREVENTIVA" ? equipamentoPatrimonio : "",
-          equipamento_especificacoes: tipoManutencao === "PREVENTIVA" ? equipamentoEspecificacoes : "",
-          orcamento_previsto: tipoManutencao === "PREVENTIVA" ? orcamentoPrevisto : "",
         }),
       });
 
@@ -183,7 +122,7 @@ export default function EditarOSPage() {
     <div className="min-h-screen p-4 sm:p-6">
       <div className="mx-auto w-full max-w-3xl space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-slate-900">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-2xl font-extrabold">Editar Ordem de Serviço</h1>
+          <h1 className="text-2xl font-extrabold">Editar ordem de serviço</h1>
           <button
             type="button"
             onClick={() => {
@@ -200,42 +139,57 @@ export default function EditarOSPage() {
         </div>
 
         <p className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-          Aqui o admin ajusta apenas a descrição inicial e o encaminhamento para o técnico. Os registros de ANTES, DEPOIS, informações e fotos do técnico permanecem preservados.
+          O admin revisa a solicitação do cliente, ajusta a descrição inicial e faz o encaminhamento para o técnico.
+          Os registros de antes e depois permanecem preservados.
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} />
-          <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Subcliente" value={subcliente} onChange={(e) => setSubcliente(e.target.value)} />
-          {isDasa && (
-            <>
-              <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Marca" value={marca} onChange={(e) => setMarca(e.target.value)} />
-              <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Unidade" value={unidade} onChange={(e) => setUnidade(e.target.value)} />
-            </>
-          )}
-          <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Endereço" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
-          <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-          <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Solicitante" value={solicitanteNome} onChange={(e) => setSolicitanteNome(e.target.value)} />
+        <section className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <h2 className="text-lg font-extrabold text-slate-900">Dados do cliente</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input className="rounded-xl border border-slate-200 bg-white p-2.5" placeholder="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} />
+            <input className="rounded-xl border border-slate-200 bg-white p-2.5" placeholder="Subcliente" value={subcliente} onChange={(e) => setSubcliente(e.target.value)} />
+            {isDasa && (
+              <>
+                <input className="rounded-xl border border-slate-200 bg-white p-2.5" placeholder="Marca" value={marca} onChange={(e) => setMarca(e.target.value)} />
+                <input className="rounded-xl border border-slate-200 bg-white p-2.5" placeholder="Unidade" value={unidade} onChange={(e) => setUnidade(e.target.value)} />
+              </>
+            )}
+            <input className="rounded-xl border border-slate-200 bg-white p-2.5" placeholder="Endereço" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+            <input className="rounded-xl border border-slate-200 bg-white p-2.5" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="rounded-xl border border-slate-200 bg-white p-2.5" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+            <input className="rounded-xl border border-slate-200 bg-white p-2.5" placeholder="Solicitante" value={solicitanteNome} onChange={(e) => setSolicitanteNome(e.target.value)} />
+          </div>
+        </section>
 
-          <select className="rounded-xl border border-slate-200 p-2.5" value={tipoManutencao} onChange={(e) => setTipoManutencao(e.target.value as (typeof TIPO_MANUTENCAO)[number])}>
-            {TIPO_MANUTENCAO.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
+        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+          <h2 className="text-lg font-extrabold text-slate-900">Encaminhamento</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <select className="rounded-xl border border-slate-200 p-2.5" value={tipoManutencao} onChange={(e) => setTipoManutencao(e.target.value as (typeof TIPO_MANUTENCAO)[number])}>
+              {TIPO_MANUTENCAO.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
 
-          <select className="rounded-xl border border-slate-200 p-2.5" value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value)}>
-            <option value="">Selecione o técnico</option>
-            {tecnicos.map((t) => (
-              <option key={t._id} value={t._id}>{t.nome}</option>
-            ))}
-          </select>
+            <select className="rounded-xl border border-slate-200 p-2.5" value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value)}>
+              <option value="">Selecione o técnico</option>
+              {tecnicos.map((t) => (
+                <option key={t._id} value={t._id}>
+                  {t.nome}
+                </option>
+              ))}
+            </select>
 
-          <select className="rounded-xl border border-slate-200 p-2.5" value={prioridade} onChange={(e) => setPrioridade(e.target.value as (typeof PRIORIDADES)[number])}>
-            {PRIORIDADES.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
+            <select className="rounded-xl border border-slate-200 p-2.5 sm:col-span-2" value={prioridade} onChange={(e) => setPrioridade(e.target.value as (typeof PRIORIDADES)[number])}>
+              {PRIORIDADES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
 
         {fotoProblema && (
           <>
@@ -246,38 +200,13 @@ export default function EditarOSPage() {
           </>
         )}
 
-        <textarea className="w-full rounded-xl border border-slate-200 p-2.5" rows={4} placeholder="Descrição inicial e encaminhamento para o técnico" value={detalhamento} onChange={(e) => setDetalhamento(e.target.value)} />
-
-        {tipoManutencao === "PREVENTIVA" && (
-          <>
-            <h2 className="pt-2 text-lg font-extrabold">Catálogo / Orçamento (Preventiva)</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className="mb-1 block text-sm font-semibold">Equipamento do catálogo</span>
-                <select
-                  className="w-full rounded-xl border border-slate-200 p-2.5"
-                  value={equipamentoCatalogoId}
-                  onChange={(e) => selecionarEquipamento(e.target.value)}
-                >
-                  <option value="">Selecione um equipamento</option>
-                  {catalogoEquipamentos.map((eq) => (
-                    <option key={eq._id} value={eq._id}>
-                      {eq.nome} {eq.fabricante ? `- ${eq.fabricante}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Nome do equipamento" value={equipamentoNome} onChange={(e) => setEquipamentoNome(e.target.value)} />
-              <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Fabricante" value={equipamentoFabricante} onChange={(e) => setEquipamentoFabricante(e.target.value)} />
-              <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Modelo" value={equipamentoModelo} onChange={(e) => setEquipamentoModelo(e.target.value)} />
-              <input className="rounded-xl border border-slate-200 p-2.5" placeholder="Número de série" value={equipamentoNumeroSerie} onChange={(e) => setEquipamentoNumeroSerie(e.target.value)} />
-              <input className="rounded-xl border border-slate-200 p-2.5 sm:col-span-2" placeholder="Patrimônio / TAG" value={equipamentoPatrimonio} onChange={(e) => setEquipamentoPatrimonio(e.target.value)} />
-              <textarea className="rounded-xl border border-slate-200 p-2.5 sm:col-span-2" rows={3} placeholder="Especificações técnicas" value={equipamentoEspecificacoes} onChange={(e) => setEquipamentoEspecificacoes(e.target.value)} />
-              <input className="rounded-xl border border-slate-200 p-2.5 sm:col-span-2" placeholder="Orçamento previsto" value={orcamentoPrevisto} onChange={(e) => setOrcamentoPrevisto(e.target.value)} />
-            </div>
-          </>
-        )}
+        <textarea
+          className="w-full rounded-xl border border-slate-200 p-2.5"
+          rows={5}
+          placeholder="Descrição inicial e encaminhamento para o técnico"
+          value={detalhamento}
+          onChange={(e) => setDetalhamento(e.target.value)}
+        />
 
         <button
           onClick={salvarAlteracoes}

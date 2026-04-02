@@ -116,7 +116,7 @@ export default function AntesPage() {
   async function handleFotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
     const novasFotos = await Promise.all(Array.from(e.target.files).map((f) => comprimirImagem(f)));
-    setFotos((prev) => [...prev, ...novasFotos].slice(0, 2));
+    setFotos((prev) => [...prev, ...novasFotos].slice(0, 4));
   }
 
   function removerFoto(index: number) {
@@ -208,12 +208,12 @@ export default function AntesPage() {
         <textarea className="mb-4 w-full rounded-xl border border-slate-200 p-2.5" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
 
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
-          Adicionar fotos (1 a 2)
+          Adicionar fotos (1 a 4)
           <input type="file" accept="image/*" multiple hidden onChange={handleFotosChange} />
         </label>
 
-        <p className={`mt-2 text-sm ${fotos.length >= 1 && fotos.length <= 2 ? "text-emerald-700" : "text-rose-700"}`}>
-          {fotos.length} / 2 foto{fotos.length !== 1 && "s"}
+        <p className={`mt-2 text-sm ${fotos.length >= 1 && fotos.length <= 4 ? "text-emerald-700" : "text-rose-700"}`}>
+          {fotos.length} / 4 foto{fotos.length !== 1 && "s"}
         </p>
 
         {fotos.length > 0 && (
@@ -285,7 +285,7 @@ export default function AntesPage() {
 
         <button
           onClick={salvarAntes}
-          disabled={salvando || fotos.length < 1 || fotos.length > 2 || !relatorio.trim()}
+          disabled={salvando || fotos.length < 1 || fotos.length > 4 || !relatorio.trim()}
           className="mt-6 w-full rounded-xl bg-sky-700 px-4 py-3 font-bold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {salvando ? "Salvando..." : "Salvar ANTES e ir para DEPOIS"}
